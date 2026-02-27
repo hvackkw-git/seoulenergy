@@ -160,6 +160,42 @@ body {
   box-shadow: 0 0 8px rgba(255, 213, 0, 0.3);
 }
 
+.save-slot-frame {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  align-self: flex-start;
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(20px);
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 16px 20px;
+}
+
+.save-slot-frame .developer-slot-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.save-slot-second-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.save-slot-frame .slot-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.save-slot-frame .save-row {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
 .save-row {
   display: flex;
   align-items: center;
@@ -177,14 +213,34 @@ body {
 }
 
 .save-slot-select {
-  padding: 6px 10px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.06);
+  padding: 8px 30px 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 242, 255, 0.6);
+  background:
+    linear-gradient(135deg, rgba(0, 242, 255, 0.22), rgba(112, 0, 255, 0.18)),
+    rgba(10, 14, 20, 0.9);
   color: var(--text);
   font-size: 0.9rem;
   font-family: inherit;
-  min-width: 60px;
+  min-width: 80px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-repeat: no-repeat;
+  background-position:
+    right 12px center,
+    left top;
+  background-size:
+    10px 10px,
+    auto;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--color-1) 50%),
+    linear-gradient(135deg, rgba(0, 242, 255, 0.22), rgba(112, 0, 255, 0.18));
+}
+
+.save-slot-select::-ms-expand {
+  display: none;
 }
 
 .save-submit-btn {
@@ -202,6 +258,24 @@ body {
 .save-submit-btn:hover {
   background: rgba(0, 242, 255, 0.25);
   box-shadow: 0 0 10px rgba(0, 242, 255, 0.2);
+}
+
+.save-delete-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-soft);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.save-delete-btn:hover {
+  background: rgba(255, 100, 100, 0.2);
+  color: #ff6b6b;
+  border-color: rgba(255, 100, 100, 0.5);
 }
 
 .dev-slot-btn {
@@ -247,6 +321,68 @@ body {
   color: var(--text-soft);
   font-size: 0.95rem;
   padding: 24px 0;
+}
+
+/* 간이계산기 */
+.calc-section {
+  margin-bottom: 28px;
+  padding: 20px 24px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  max-width: 560px;
+}
+
+.calc-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 12px 0;
+}
+
+.calc-desc {
+  font-size: 0.85rem;
+  color: var(--text-soft);
+  margin: 0 0 12px 0;
+}
+
+.calc-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.calc-row label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+  min-width: 120px;
+}
+
+.calc-row label .unit {
+  color: var(--text-soft);
+  font-weight: 400;
+}
+
+.calc-row input[type="number"] {
+  width: 140px;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.3);
+  color: #fff;
+  font-size: 1rem;
+}
+
+.calc-result {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-1);
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: rgba(0, 242, 255, 0.12);
+  border: 1px solid rgba(0, 242, 255, 0.25);
 }
 
 .economics-cols {
@@ -637,6 +773,529 @@ input:focus {
   padding: 30px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 0 30px rgba(0, 0, 0, 0.2);
+}
+
+/* 민감도 분석 */
+.sensitivity-section {
+  margin-top: 24px;
+}
+
+.sensitivity-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.sensitivity-control-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sensitivity-control-row label {
+  font-weight: 600;
+  color: var(--text-soft);
+  white-space: nowrap;
+}
+
+.sensitivity-control-row input[type="number"] {
+  width: 80px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.sensitivity-control-row select {
+  padding: 8px 32px 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 242, 255, 0.6);
+  background:
+    linear-gradient(135deg, rgba(0, 242, 255, 0.22), rgba(112, 0, 255, 0.18)),
+    rgba(10, 14, 20, 0.9);
+  color: var(--text);
+  font-size: 0.95rem;
+  min-width: 140px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-repeat: no-repeat;
+  background-position:
+    right 14px center,
+    left top;
+  background-size:
+    10px 10px,
+    auto;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--color-1) 50%),
+    linear-gradient(135deg, rgba(0, 242, 255, 0.22), rgba(112, 0, 255, 0.18));
+}
+
+.sensitivity-table-wrap {
+  overflow-x: auto;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 16px;
+}
+
+.sensitivity-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.sensitivity-table th,
+.sensitivity-table td {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sensitivity-table thead th {
+  font-weight: 700;
+  color: var(--text);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.sensitivity-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.sensitivity-table td:first-child {
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+.sensitivity-table .report-value {
+  margin-top: 0;
+}
+
+.sensitivity-charts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 28px;
+}
+
+@media (max-width: 720px) {
+  .sensitivity-charts {
+    grid-template-columns: 1fr;
+  }
+}
+
+.sensitivity-chart-box {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 16px;
+}
+
+.sensitivity-chart-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 12px 0;
+}
+
+.sensitivity-chart-svg-wrap {
+  width: 100%;
+  min-height: 200px;
+}
+
+.sensitivity-svg {
+  width: 100%;
+  height: auto;
+  min-height: 200px;
+  display: block;
+}
+
+/* 최종보고서 */
+.final-report {
+  margin-top: 16px;
+  padding-bottom: 32px;
+}
+
+.final-report-main-title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0 0 8px 0;
+  letter-spacing: -0.02em;
+}
+
+.final-report-desc {
+  font-size: 0.95rem;
+  color: var(--text-soft);
+  margin: 0 0 28px 0;
+  line-height: 1.5;
+}
+
+.final-report-section {
+  margin-bottom: 32px;
+}
+
+.final-report-section:last-of-type {
+  margin-bottom: 0;
+}
+
+.final-report-section-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-1);
+  margin: 0 0 14px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(0, 242, 255, 0.25);
+}
+
+.final-report-table-wrap {
+  overflow-x: auto;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 4px;
+}
+
+.final-report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.final-report-table th,
+.final-report-table td {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.final-report-table thead th {
+  font-weight: 700;
+  color: var(--text);
+  background: rgba(0, 242, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.final-report-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.final-report-label {
+  font-weight: 600;
+  color: var(--text-soft);
+  white-space: nowrap;
+  width: 1%;
+  min-width: 180px;
+}
+
+.final-report-value {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.final-report-table-sensitivity .final-report-label {
+  min-width: 160px;
+}
+
+.final-report-table-economics td {
+  width: 25%;
+}
+
+.final-report-note {
+  font-size: 0.8rem;
+  color: var(--text-soft);
+  margin: 10px 0 0 0;
+}
+
+.final-report-actions {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.final-report-print-btn {
+  padding: 12px 28px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--color-1), var(--color-2));
+  color: var(--bg-deep);
+  font-size: 1rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(0, 242, 255, 0.35);
+}
+
+.final-report-print-btn:hover {
+  box-shadow: 0 6px 24px rgba(0, 242, 255, 0.45);
+}
+
+/* 최적값찾기 */
+.optimizer-section {
+  margin-top: 24px;
+  padding: 24px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.optimizer-inputs-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 960px) {
+  .optimizer-inputs-row {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 800px) {
+  .optimizer-inputs-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .optimizer-inputs-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.optimizer-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.optimizer-field label {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.optimizer-field label .unit {
+  color: var(--text-soft);
+  font-weight: 400;
+}
+
+.optimizer-field input[type="number"] {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.optimizer-field input[type="number"]:focus {
+  outline: none;
+  border-color: var(--color-1);
+  box-shadow: 0 0 0 2px rgba(0, 242, 255, 0.2);
+}
+
+.optimizer-row {
+  margin-bottom: 24px;
+}
+
+.optimizer-row:last-child {
+  margin-bottom: 0;
+}
+
+.optimizer-row-head {
+  margin-bottom: 10px;
+}
+
+.optimizer-row-head label,
+.optimizer-row-label {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.optimizer-row-head .unit,
+.optimizer-row label .unit {
+  color: var(--text-soft);
+  font-weight: 400;
+}
+
+.optimizer-section input[type="number"] {
+  width: 100%;
+  max-width: 200px;
+  padding: 12px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.optimizer-section input[type="number"]:focus {
+  outline: none;
+  border-color: var(--color-1);
+  box-shadow: 0 0 0 2px rgba(0, 242, 255, 0.2);
+}
+
+.optimizer-toggle {
+  display: inline-flex;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+
+.optimizer-toggle-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+
+.optimizer-geo-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-soft);
+  cursor: pointer;
+}
+
+.optimizer-geo-check input {
+  width: auto;
+  margin: 0;
+}
+
+.optimizer-toggle-btn {
+  padding: 12px 20px;
+  border: none;
+  background: transparent;
+  color: var(--text-soft);
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.optimizer-toggle-btn:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.optimizer-toggle-btn.is-active {
+  background: var(--color-1);
+  color: var(--bg-deep);
+  box-shadow: 0 0 12px rgba(0, 242, 255, 0.3);
+}
+
+.optimizer-run-btn {
+  padding: 14px 32px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--color-1), var(--color-2));
+  color: var(--bg-deep);
+  font-size: 1rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(0, 242, 255, 0.35);
+  transition: transform 0.15s, box-shadow 0.2s;
+}
+
+.optimizer-run-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(0, 242, 255, 0.45);
+}
+
+.optimizer-result {
+  margin-top: 24px;
+  min-height: 0;
+}
+
+.optimizer-result-error {
+  color: #ff8a80;
+  font-size: 0.95rem;
+  margin: 0;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: rgba(255, 100, 100, 0.12);
+  border: 1px solid rgba(255, 100, 100, 0.3);
+}
+
+.optimizer-result-box {
+  padding: 20px 24px;
+  border-radius: 16px;
+  border: 1px solid rgba(0, 242, 255, 0.2);
+  background: rgba(0, 242, 255, 0.06);
+}
+
+.optimizer-result-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 14px 0;
+}
+
+.optimizer-result-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 18px 0;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.optimizer-result-list li {
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.optimizer-result-list li:last-child {
+  border-bottom: none;
+}
+
+.optimizer-result-list strong {
+  color: var(--color-1);
+  margin-right: 8px;
+}
+
+.optimizer-apply-btn {
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: 1px solid var(--color-1);
+  background: rgba(0, 242, 255, 0.15);
+  color: var(--color-1);
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.optimizer-apply-btn:hover {
+  background: rgba(0, 242, 255, 0.25);
+  box-shadow: 0 0 10px rgba(0, 242, 255, 0.2);
+}
+
+/* 공통 셀렉트 포커스 / 옵션 가시성 향상 */
+.card select:focus,
+.save-slot-select:focus,
+.sensitivity-control-row select:focus {
+  outline: none;
+  border-color: var(--color-1);
+  box-shadow: 0 0 0 2px rgba(0, 242, 255, 0.4);
+}
+
+.card select option {
+  background: #050810;
+  color: var(--text);
 }
 
 /* 보고서 제목: 위 입력 양식과 동일 (form-row-head 라벨 스타일) */

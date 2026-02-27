@@ -36,6 +36,8 @@
   inputs.smpWonPerKwh = "100";
   inputs.gasWonPerMj = "22";
   inputs.geothermalOptimize = false;
+  inputs.optimizerTargetSelfSufficiency = "";
+  inputs.optimizerMode = "investment";
 
   var COST_PER_M2 = 2500000;
 
@@ -100,6 +102,8 @@
     updateGasAndElectricityUsage();
     updateEnergyCosts();
     updateNpvIrrReport();
+    updateSensitivityTable();
+    updateFinalReport();
   }
 
   /** 현재 폼 값으로 저장용 객체 생성 */
@@ -139,6 +143,12 @@
       var row = document.getElementById("pipeRow" + suffix);
       if (row) row.style.display = inputs["pipeCheck" + suffix] ? "block" : "none";
     });
+    var mode = inputs.optimizerMode;
+    if (mode === "investment" || mode === "economics") {
+      app.querySelectorAll(".optimizer-toggle-btn").forEach(function (b) {
+        b.classList.toggle("is-active", b.getAttribute("data-optimizer-mode") === mode);
+      });
+    }
     refreshAll();
   }
 
@@ -182,7 +192,7 @@
         } catch (e) {}
       });
     });
-    [["saveBtnTab1", "saveSlotTab1"], ["saveBtnTab2", "saveSlotTab2"]].forEach(function (pair) {
+    [["saveBtnTab1", "saveSlotTab1"]].forEach(function (pair) {
       var saveBtn = document.getElementById(pair[0]);
       var slotSelect = document.getElementById(pair[1]);
       if (saveBtn && slotSelect) {
@@ -199,6 +209,20 @@
         });
       }
     });
+    var deleteBtn = document.getElementById("saveDeleteBtn1");
+    var slotSelectForDelete = document.getElementById("saveSlotTab1");
+    if (deleteBtn && slotSelectForDelete) {
+      deleteBtn.addEventListener("click", function () {
+        var n = parseInt(slotSelectForDelete.value, 10);
+        if (!Number.isFinite(n) || n < 1 || n > 10) return;
+        try {
+          if (typeof localStorage !== "undefined") {
+            localStorage.removeItem(SAVE_SLOT_KEY + n);
+            updateSlotButtons();
+          }
+        } catch (e) {}
+      });
+    }
     updateSlotButtons();
     updateDevSlotButtons();
   }
@@ -232,22 +256,35 @@
     app.innerHTML = `
       <div class="card">
         <div class="card-header">
-          <h1>Seoul Energy Platform</h1>
+          <h1>SE Platform</h1>
           <div class="tab-buttons">
             <button type="button" class="tab-btn ${currentTab === 1 ? "is-active" : ""}" data-tab="1">투자비산출</button>
             <button type="button" class="tab-btn ${currentTab === 2 ? "is-active" : ""}" data-tab="2">경제성분석</button>
+            <button type="button" class="tab-btn ${currentTab === 3 ? "is-active" : ""}" data-tab="3">민감도분석</button>
+            <button type="button" class="tab-btn ${currentTab === 4 ? "is-active" : ""}" data-tab="4">최적값찾기</button>
+            <button type="button" class="tab-btn ${currentTab === 5 ? "is-active" : ""}" data-tab="5">최종보고서</button>
+            <button type="button" class="tab-btn ${currentTab === 6 ? "is-active" : ""}" data-tab="6">간이계산기</button>
           </div>
-          <div class="header-slots-wrap">
+          <div class="save-slot-frame">
             <div class="developer-slot-buttons" aria-label="개발자 프리셋">
               ${[1,2,3,4,5,6,7,8,9,10].map(function(n) { return "<button type=\"button\" class=\"dev-slot-btn\" data-dev-slot=\"" + n + "\" aria-label=\"개발자 슬롯 " + n + "\">" + n + "</button>"; }).join("")}
             </div>
-            <div class="slot-buttons" aria-label="저장 슬롯">
-              ${[1,2,3,4,5,6,7,8,9,10].map(function(n) { return "<button type=\"button\" class=\"slot-btn\" data-slot=\"" + n + "\" aria-label=\"슬롯 " + n + " 불러오기\">" + n + "</button>"; }).join("")}
+            <div class="save-slot-second-row">
+              <div class="slot-buttons" aria-label="저장 슬롯 불러오기">
+                ${[1,2,3,4,5,6,7,8,9,10].map(function(n) { return "<button type=\"button\" class=\"slot-btn\" data-slot=\"" + n + "\" aria-label=\"슬롯 " + n + " 불러오기\">" + n + "</button>"; }).join("")}
+              </div>
+              <div class="save-row">
+                <label class="save-row-label">저장 슬롯</label>
+                <select id="saveSlotTab1" class="save-slot-select" aria-label="저장 슬롯">
+                  ${[1,2,3,4,5,6,7,8,9,10].map(function(n) { return "<option value=\"" + n + "\">" + n + "</option>"; }).join("")}
+                </select>
+                <button type="button" id="saveBtnTab1" class="save-submit-btn">저장</button>
+                <button type="button" id="saveDeleteBtn1" class="save-delete-btn">삭제</button>
+              </div>
             </div>
           </div>
         </div>
         <div id="tabPanel1" class="tab-panel ${currentTab === 1 ? "is-active" : ""}">
-          <p class="sub">태양광·지열 투자에 따른 자립률, 절감비용, 취득세 경감 계산</p>
 
         <div class="form-two-cols form-input-cols">
           <div class="form-col form-col-left">
@@ -455,17 +492,9 @@
             </div>
           </div>
         </div>
-        <div class="save-row">
-          <label class="save-row-label">저장할 슬롯</label>
-          <select id="saveSlotTab1" class="save-slot-select" aria-label="저장할 슬롯">
-            ${[1,2,3,4,5,6,7,8,9,10].map(function(n) { return "<option value=\"" + n + "\">" + n + "</option>"; }).join("")}
-          </select>
-          <button type="button" id="saveBtnTab1" class="save-submit-btn">저장</button>
-        </div>
         </div>
 
         <div id="tabPanel2" class="tab-panel ${currentTab === 2 ? "is-active" : ""}">
-          <p class="sub">경제성 분석</p>
           <div class="economics-cols form-two-cols form-input-cols">
             <div class="form-col form-col-left economics-col-left">
               <div class="economics-section">
@@ -598,13 +627,204 @@
             </div>
           </div>
         </div>
-        <div class="save-row">
-          <label class="save-row-label">저장할 슬롯</label>
-          <select id="saveSlotTab2" class="save-slot-select" aria-label="저장할 슬롯">
-            ${[1,2,3,4,5,6,7,8,9,10].map(function(n) { return "<option value=\"" + n + "\">" + n + "</option>"; }).join("")}
-          </select>
-          <button type="button" id="saveBtnTab2" class="save-submit-btn">저장</button>
         </div>
+
+        <div id="tabPanel3" class="tab-panel ${currentTab === 3 ? "is-active" : ""}">
+          <div class="sensitivity-section">
+            <div class="sensitivity-controls">
+              <div class="sensitivity-control-row">
+                <label for="sensitivityRange">민감도 범위 <span class="unit">(%)</span></label>
+                <input type="number" id="sensitivityRange" value="10" min="1" max="50" step="1" />
+              </div>
+              <div class="sensitivity-control-row">
+                <label for="sensitivityVariable">변수 선택</label>
+                <select id="sensitivityVariable" aria-label="민감도 변수">
+                  <option value="investment">투자비</option>
+                  <option value="smp">전기세</option>
+                  <option value="gas">가스요금</option>
+                  <option value="taxSave">취득세절감</option>
+                </select>
+              </div>
+            </div>
+            <div class="sensitivity-table-wrap">
+              <table class="sensitivity-table" id="sensitivityTable">
+                <thead>
+                  <tr>
+                    <th>지표</th>
+                    <th id="sensitivityCol0">—</th>
+                    <th id="sensitivityCol1">—</th>
+                    <th id="sensitivityCol2">—</th>
+                    <th id="sensitivityCol3">—</th>
+                    <th id="sensitivityCol4">—</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td>전력요금 절감</td><td id="sensElec0">—</td><td id="sensElec1">—</td><td id="sensElec2">—</td><td id="sensElec3">—</td><td id="sensElec4">—</td></tr>
+                  <tr><td>가스요금 절감</td><td id="sensGas0">—</td><td id="sensGas1">—</td><td id="sensGas2">—</td><td id="sensGas3">—</td><td id="sensGas4">—</td></tr>
+                  <tr><td>총 에너지비용 절감</td><td id="sensTotal0">—</td><td id="sensTotal1">—</td><td id="sensTotal2">—</td><td id="sensTotal3">—</td><td id="sensTotal4">—</td></tr>
+                  <tr><td>간이투자회수 기간</td><td id="sensPayback0">—</td><td id="sensPayback1">—</td><td id="sensPayback2">—</td><td id="sensPayback3">—</td><td id="sensPayback4">—</td></tr>
+                  <tr><td>NPV</td><td id="sensNpv0">—</td><td id="sensNpv1">—</td><td id="sensNpv2">—</td><td id="sensNpv3">—</td><td id="sensNpv4">—</td></tr>
+                  <tr><td>IRR</td><td id="sensIrr0">—</td><td id="sensIrr1">—</td><td id="sensIrr2">—</td><td id="sensIrr3">—</td><td id="sensIrr4">—</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="sensitivity-charts">
+              <div class="sensitivity-chart-box">
+                <h4 class="sensitivity-chart-title">시나리오별 NPV</h4>
+                <div class="sensitivity-chart-svg-wrap" id="sensitivityNpvChart"></div>
+              </div>
+              <div class="sensitivity-chart-box">
+                <h4 class="sensitivity-chart-title">시나리오별 IRR</h4>
+                <div class="sensitivity-chart-svg-wrap" id="sensitivityIrrChart"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="tabPanel4" class="tab-panel ${currentTab === 4 ? "is-active" : ""}">
+          <p class="sub">최적값찾기</p>
+          <div class="optimizer-section">
+            <div class="optimizer-inputs-row">
+              <div class="optimizer-field">
+                <label for="optimizerTargetSelfSufficiency">자립률 목표 <span class="unit">(%)</span></label>
+                <input type="number" id="optimizerTargetSelfSufficiency" placeholder="예: 40" min="0" max="100" step="0.1" value="${inputs.optimizerTargetSelfSufficiency}" />
+              </div>
+              <div class="optimizer-field">
+                <label for="optimizerAreaM2">연면적 <span class="unit">(m²)</span></label>
+                <input type="number" id="optimizerAreaM2" placeholder="예: 10000" min="0" step="0.01" value="${inputs.areaM2 || ""}" />
+              </div>
+              <div class="optimizer-field">
+                <label for="optimizerHouseholdCount">세대수 <span class="unit">(세대)</span></label>
+                <input type="number" id="optimizerHouseholdCount" placeholder="예: 100" min="0" step="1" value="${inputs.householdCount || ""}" />
+              </div>
+              <div class="optimizer-field">
+                <label for="optimizerRoofAreaM2">옥상면적 <span class="unit">(m²)</span></label>
+                <input type="number" id="optimizerRoofAreaM2" placeholder="예: 500" min="0" step="0.01" />
+              </div>
+              <div class="optimizer-field">
+                <label for="optimizerSiteAreaM2">부지면적 <span class="unit">(m²)</span></label>
+                <input type="number" id="optimizerSiteAreaM2" placeholder="예: 49" min="0" step="0.01" />
+              </div>
+            </div>
+            <div class="optimizer-row">
+              <div class="optimizer-row-head">
+                <span class="optimizer-row-label">최적화 기준</span>
+              </div>
+              <div class="optimizer-toggle-wrap">
+                <div class="optimizer-toggle" role="group" aria-label="최적화 기준 선택">
+                  <button type="button" class="optimizer-toggle-btn ${inputs.optimizerMode === "investment" ? "is-active" : ""}" data-optimizer-mode="investment">초기투자비 중심</button>
+                  <button type="button" class="optimizer-toggle-btn ${inputs.optimizerMode === "economics" ? "is-active" : ""}" data-optimizer-mode="economics">경제성 중심</button>
+                </div>
+                <label class="optimizer-geo-check"><input type="checkbox" id="optimizerGeothermalOptimize" ${inputs.geothermalOptimize ? "checked" : ""}> 지열 최적화</label>
+                <button type="button" id="optimizerRunBtn" class="optimizer-run-btn">RUN</button>
+              </div>
+            </div>
+            <div id="optimizerResult" class="optimizer-result" aria-live="polite"></div>
+          </div>
+        </div>
+
+        <div id="tabPanel5" class="tab-panel ${currentTab === 5 ? "is-active" : ""}">
+          <div class="final-report">
+            <h2 class="final-report-main-title">최종보고서</h2>
+            <p class="final-report-desc">투자비산출·경제성분석·민감도분석 결과를 한눈에 확인합니다.</p>
+
+            <section class="final-report-section">
+              <h3 class="final-report-section-title">1. 투자비 산출 요약</h3>
+              <div class="final-report-table-wrap">
+                <table class="final-report-table">
+                  <tbody id="finalReportInvestmentBody"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="final-report-section">
+              <h3 class="final-report-section-title">2. 경제성 분석 요약</h3>
+              <div class="final-report-table-wrap">
+                <table class="final-report-table final-report-table-economics">
+                  <tbody id="finalReportEconomicsBody"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="final-report-section">
+              <h3 class="final-report-section-title">3. 민감도 분석 요약</h3>
+              <div class="final-report-table-wrap">
+                <table class="final-report-table final-report-table-sensitivity">
+                  <thead>
+                    <tr>
+                      <th>지표</th>
+                      <th id="finalSensCol0">—</th>
+                      <th id="finalSensCol1">—</th>
+                      <th id="finalSensCol2">—</th>
+                      <th id="finalSensCol3">—</th>
+                      <th id="finalSensCol4">—</th>
+                    </tr>
+                  </thead>
+                  <tbody id="finalReportSensitivityBody"></tbody>
+                </table>
+              </div>
+              <p class="final-report-note" id="finalReportSensitivityNote">민감도 범위 및 변수는 민감도분석 탭에서 설정한 값을 사용합니다.</p>
+              <div class="sensitivity-charts final-sensitivity-charts">
+                <div class="sensitivity-chart-box">
+                  <h4 class="sensitivity-chart-title">NPV 민감도</h4>
+                  <div class="sensitivity-chart-svg-wrap" id="finalSensitivityNpvChart"></div>
+                </div>
+                <div class="sensitivity-chart-box">
+                  <h4 class="sensitivity-chart-title">IRR 민감도</h4>
+                  <div class="sensitivity-chart-svg-wrap" id="finalSensitivityIrrChart"></div>
+                </div>
+              </div>
+            </section>
+            <div class="final-report-actions">
+              <button type="button" id="finalReportPrintBtn" class="final-report-print-btn">출력</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="tabPanel6" class="tab-panel ${currentTab === 6 ? "is-active" : ""}">
+          <p class="sub">간이계산기</p>
+          <div class="calc-section">
+            <h3 class="calc-title">지열 단위 변환</h3>
+            <div class="calc-row">
+              <label for="calcGeoKw">지열 용량 <span class="unit">(kW)</span></label>
+              <input type="number" id="calcGeoKw" placeholder="예: 100" min="0" step="0.01" />
+              <span class="calc-result">→ USRT: <span id="calcGeoUsrt">—</span></span>
+            </div>
+          </div>
+          <div class="calc-section">
+            <h3 class="calc-title">지열 개략 투자비</h3>
+            <div class="calc-row">
+              <label for="calcGeoCostKw">지열 용량 <span class="unit">(kW)</span></label>
+              <input type="number" id="calcGeoCostKw" placeholder="예: 50" min="0" step="0.01" />
+              <span class="calc-result">→ 투자비: <span id="calcGeoCost">—</span></span>
+            </div>
+          </div>
+          <div class="calc-section">
+            <h3 class="calc-title">면적당 태양광 용량</h3>
+            <p class="calc-desc">1 m²당 100 W 기준</p>
+            <div class="calc-row">
+              <label for="calcSolarAreaM2">면적 <span class="unit">(m²)</span></label>
+              <input type="number" id="calcSolarAreaM2" placeholder="예: 100" min="0" step="0.01" />
+              <span class="calc-result">→ <span id="calcSolarKwp">—</span> kW</span>
+            </div>
+          </div>
+          <div class="calc-section">
+            <h3 class="calc-title">옥상 최대 설치 용량</h3>
+            <p class="calc-desc">옥상면적 × 70% × 100 W</p>
+            <div class="calc-row">
+              <label for="calcRoofAreaM2">옥상면적 <span class="unit">(m²)</span></label>
+              <input type="number" id="calcRoofAreaM2" placeholder="예: 500" min="0" step="0.01" />
+              <span class="calc-result">→ 최대 <span id="calcRoofKwp">—</span> kW</span>
+            </div>
+          </div>
+          <div class="calc-section">
+            <h3 class="calc-title">태양광 개략 투자비</h3>
+            <div class="calc-row">
+              <label for="calcPvCostKwp">태양광 용량 <span class="unit">(kW)</span></label>
+              <input type="number" id="calcPvCostKwp" placeholder="예: 100" min="0" step="0.01" />
+              <span class="calc-result">→ 투자비: <span id="calcPvCost">—</span></span>
+            </div>
+          </div>
         </div>
       </div>
     `;
@@ -618,6 +838,16 @@
         btn.classList.add("is-active");
         var panel = document.getElementById("tabPanel" + tab);
         if (panel) panel.classList.add("is-active");
+        if (tab === 3) updateSensitivityTable();
+        if (tab === 4) {
+          var oa = document.getElementById("optimizerAreaM2");
+          if (oa) oa.value = inputs.areaM2 || "";
+          var oh = document.getElementById("optimizerHouseholdCount");
+          if (oh) oh.value = inputs.householdCount || "";
+          var oGeo = document.getElementById("optimizerGeothermalOptimize");
+          if (oGeo) oGeo.checked = !!inputs.geothermalOptimize;
+        }
+        if (tab === 5) updateFinalReport();
       });
     });
 
@@ -777,7 +1007,153 @@
 
     bindSlotAndSaveButtons();
 
+    bindCalcInputs();
+    bindSensitivityInputs();
+    bindOptimizerInputs();
+    var printBtn = document.getElementById("finalReportPrintBtn");
+    if (printBtn) printBtn.addEventListener("click", openReportPrintWindow);
+
     refreshAll();
+  }
+
+  function bindCalcInputs() {
+    var geoKwEl = document.getElementById("calcGeoKw");
+    var geoCostKwEl = document.getElementById("calcGeoCostKw");
+    var solarAreaEl = document.getElementById("calcSolarAreaM2");
+    var roofAreaEl = document.getElementById("calcRoofAreaM2");
+    var pvCostKwpEl = document.getElementById("calcPvCostKwp");
+    function updateAllCalcs() {
+      updateCalcGeo();
+      updateCalcGeoCost();
+      updateCalcSolar();
+      updateCalcRoof();
+      updateCalcPvCost();
+    }
+    if (geoKwEl) {
+      geoKwEl.addEventListener("input", updateAllCalcs);
+      geoKwEl.addEventListener("change", updateAllCalcs);
+    }
+    if (geoCostKwEl) {
+      geoCostKwEl.addEventListener("input", updateAllCalcs);
+      geoCostKwEl.addEventListener("change", updateAllCalcs);
+    }
+    if (solarAreaEl) {
+      solarAreaEl.addEventListener("input", updateAllCalcs);
+      solarAreaEl.addEventListener("change", updateAllCalcs);
+    }
+    if (roofAreaEl) {
+      roofAreaEl.addEventListener("input", updateAllCalcs);
+      roofAreaEl.addEventListener("change", updateAllCalcs);
+    }
+    if (pvCostKwpEl) {
+      pvCostKwpEl.addEventListener("input", updateAllCalcs);
+      pvCostKwpEl.addEventListener("change", updateAllCalcs);
+    }
+    updateAllCalcs();
+  }
+
+  function bindSensitivityInputs() {
+    var rangeEl = document.getElementById("sensitivityRange");
+    var varEl = document.getElementById("sensitivityVariable");
+    function update() {
+      updateSensitivityTable();
+    }
+    if (rangeEl) {
+      rangeEl.addEventListener("input", update);
+      rangeEl.addEventListener("change", update);
+    }
+    if (varEl) {
+      varEl.addEventListener("change", update);
+    }
+    updateSensitivityTable();
+  }
+
+  function bindOptimizerInputs() {
+    var targetEl = document.getElementById("optimizerTargetSelfSufficiency");
+    if (targetEl) {
+      targetEl.addEventListener("input", function () {
+        inputs.optimizerTargetSelfSufficiency = targetEl.value;
+      });
+      targetEl.addEventListener("change", function () {
+        inputs.optimizerTargetSelfSufficiency = targetEl.value;
+      });
+    }
+    app.querySelectorAll(".optimizer-toggle-btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var mode = btn.getAttribute("data-optimizer-mode");
+        if (mode !== "investment" && mode !== "economics") return;
+        inputs.optimizerMode = mode;
+        app.querySelectorAll(".optimizer-toggle-btn").forEach(function (b) { b.classList.remove("is-active"); });
+        btn.classList.add("is-active");
+      });
+    });
+    var geoOptEl = document.getElementById("optimizerGeothermalOptimize");
+    if (geoOptEl) {
+      geoOptEl.addEventListener("change", function () {
+        inputs.geothermalOptimize = geoOptEl.checked;
+        var geoOptTab2 = document.getElementById("geothermalOptimize");
+        if (geoOptTab2) geoOptTab2.checked = geoOptEl.checked;
+      });
+    }
+    var runBtn = document.getElementById("optimizerRunBtn");
+    if (runBtn) runBtn.addEventListener("click", runOptimizer);
+  }
+
+  function updateCalcGeo() {
+    var usrtEl = document.getElementById("calcGeoUsrt");
+    if (!usrtEl) return;
+    var kw = parseFloat(document.getElementById("calcGeoKw").value, 10);
+    if (!Number.isFinite(kw) || kw < 0) {
+      usrtEl.textContent = "—";
+      return;
+    }
+    var usrt = kw / KW_PER_USRT;
+    usrtEl.textContent = usrt.toFixed(2) + " USRT";
+  }
+
+  function updateCalcGeoCost() {
+    var costEl = document.getElementById("calcGeoCost");
+    if (!costEl) return;
+    var kw = parseFloat(document.getElementById("calcGeoCostKw").value, 10);
+    if (!Number.isFinite(kw) || kw < 0) {
+      costEl.textContent = "—";
+      return;
+    }
+    costEl.textContent = formatWon(kw * GEOTHERMAL_WON_PER_KW);
+  }
+
+  function updateCalcSolar() {
+    var el = document.getElementById("calcSolarKwp");
+    if (!el) return;
+    var area = parseFloat(document.getElementById("calcSolarAreaM2").value, 10);
+    if (!Number.isFinite(area) || area < 0) {
+      el.textContent = "—";
+      return;
+    }
+    var kwp = area * 0.1;
+    el.textContent = kwp.toFixed(2);
+  }
+
+  function updateCalcRoof() {
+    var kwEl = document.getElementById("calcRoofKwp");
+    if (!kwEl) return;
+    var area = parseFloat(document.getElementById("calcRoofAreaM2").value, 10);
+    if (!Number.isFinite(area) || area < 0) {
+      kwEl.textContent = "—";
+      return;
+    }
+    kwEl.textContent = (area * 0.7 * 0.1).toFixed(2);
+  }
+
+  function updateCalcPvCost() {
+    var costEl = document.getElementById("calcPvCost");
+    if (!costEl) return;
+    var kwp = parseFloat(document.getElementById("calcPvCostKwp").value, 10);
+    if (!Number.isFinite(kwp) || kwp < 0) {
+      costEl.textContent = "—";
+      return;
+    }
+    costEl.textContent = formatWon(kwp * PV_WON_PER_KW);
   }
 
   var MJ_PER_KWH = 3.6;
@@ -947,6 +1323,49 @@
     /* PV만 있거나 한쪽만 있는 경우 */
     var total = (elecSave != null && Number.isFinite(elecSave) ? elecSave : 0) + (gasSave != null && Number.isFinite(gasSave) ? gasSave : 0);
     return total;
+  }
+
+  /** 전력/가스 절감 분리. overrides: { smp, gasWonPerMj } (미지정 시 inputs 사용). 민감도 분석용 */
+  function getEnergySaves(overrides) {
+    var o = overrides || {};
+    var smp = o.smp != null && Number.isFinite(o.smp) ? o.smp : parseFloat(inputs.smpWonPerKwh, 10);
+    var gasWonPerMj = o.gasWonPerMj != null && Number.isFinite(o.gasWonPerMj) ? o.gasWonPerMj : parseFloat(inputs.gasWonPerMj, 10);
+    var gasWonPerKwh = Number.isFinite(gasWonPerMj) ? gasWonPerMj * MJ_PER_KWH : NaN;
+    var elecKwh = getTotalElectricityUseKwh();
+    var gasKwh = getTotalGasUseKwh();
+    var elecSave = null;
+    var gasSave = null;
+    if (gasKwh != null && Number.isFinite(gasKwh) && gasKwh >= 0 && Number.isFinite(gasWonPerKwh) && gasWonPerKwh >= 0 && Number.isFinite(smp) && smp >= 0) {
+      var heatFromGas = gasKwh * BOILER_EFF;
+      var heatPumpElecForHeat = heatFromGas / HEAT_PUMP_COP_HEAT;
+      var gasCostCurrent = gasKwh * gasWonPerKwh;
+      var elecCostForHeat = heatPumpElecForHeat * smp;
+      gasSave = gasCostCurrent - elecCostForHeat;
+    }
+    if (elecKwh != null && Number.isFinite(elecKwh) && elecKwh >= 0 && Number.isFinite(smp) && smp >= 0) {
+      var elecCool = elecKwh * COOLING_SHARE_OF_ELECTRICITY;
+      var coolingLoad = elecCool * AC_COP;
+      var geoCoolElec = coolingLoad / HEAT_PUMP_COP_COOL;
+      var coolCostCurrent = elecCool * smp;
+      var coolCostWithGeo = geoCoolElec * smp;
+      elecSave = coolCostCurrent - coolCostWithGeo;
+    }
+    var ratio = getGeothermalHouseholdRatio();
+    if (ratio != null && Number.isFinite(ratio)) {
+      if (gasSave != null && Number.isFinite(gasSave)) gasSave = gasSave * ratio;
+      if (elecSave != null && Number.isFinite(elecSave)) elecSave = elecSave * ratio;
+    } else {
+      gasSave = null;
+      elecSave = null;
+    }
+    var pvPrimary = calcPvPrimaryEnergyProduction();
+    if (pvPrimary != null && Number.isFinite(pvPrimary) && pvPrimary >= 0 && Number.isFinite(smp) && smp >= 0) {
+      var pvSaveWon = (pvPrimary / ELECTRICITY_PRIMARY_FACTOR) * smp;
+      elecSave = (elecSave != null && Number.isFinite(elecSave) ? elecSave : 0) + pvSaveWon;
+    }
+    var es = elecSave != null && Number.isFinite(elecSave) ? elecSave : 0;
+    var gs = gasSave != null && Number.isFinite(gasSave) ? gasSave : 0;
+    return { electricitySave: es, gasSave: gs, totalSave: es + gs };
   }
 
   function updatePaybackPeriod(annualSave) {
@@ -1312,6 +1731,39 @@
     };
   }
 
+  /** 민감도 분석용: 투자비·취득세절감·연간절감을 직접 넣어 프로젝션 데이터 생성 */
+  function getProjectionDataFromParams(investment, taxSave, annualSave) {
+    if (investment == null || !Number.isFinite(investment)) investment = 0;
+    if (taxSave == null || !Number.isFinite(taxSave)) taxSave = 0;
+    if (annualSave == null || !Number.isFinite(annualSave)) annualSave = 0;
+    var preTax = [];
+    var tax = [];
+    var afterTax = [];
+    var cashFlows = [];
+    var cf0 = taxSave - investment;
+    cashFlows.push(cf0);
+    preTax.push(cf0);
+    tax.push(cf0 >= 0 ? cf0 * CORPORATE_TAX_RATE : 0);
+    afterTax.push(cf0 - (cf0 >= 0 ? cf0 * CORPORATE_TAX_RATE : 0));
+    for (var t = 1; t <= PROJECTION_YEARS; t++) {
+      var energySaveT = annualSave * Math.pow(1 + INFLATION_RATE, t - 1);
+      preTax.push(energySaveT);
+      var taxT = energySaveT >= 0 ? energySaveT * CORPORATE_TAX_RATE : 0;
+      tax.push(taxT);
+      afterTax.push(energySaveT - taxT);
+      cashFlows.push(energySaveT - taxT);
+    }
+    return {
+      investment: investment,
+      taxSave: taxSave,
+      annualSave: annualSave,
+      preTax: preTax,
+      tax: tax,
+      afterTax: afterTax,
+      cashFlows: cashFlows
+    };
+  }
+
   function calcNPV(cashFlows, discountRate) {
     var npv = 0;
     for (var t = 0; t < cashFlows.length; t++) {
@@ -1336,6 +1788,207 @@
       r = rNew;
     }
     return r;
+  }
+
+  /** 최적화용: 주어진 지열·PV 용량으로 시나리오 지표 계산 (inputs 일시 변경 후 복원) */
+  function getScenarioMetrics(geoKw, pvKwp, bapvKwp, bipvKwp) {
+    if (bapvKwp == null || !Number.isFinite(bapvKwp)) bapvKwp = 0;
+    if (bipvKwp == null || !Number.isFinite(bipvKwp)) bipvKwp = 0;
+    var savedGeo = inputs.geothermalCapacityKw;
+    var savedPv = inputs.solarPvKwp;
+    var savedBapv = inputs.solarBapvKwp;
+    var savedBipv = inputs.solarBipvKwp;
+    inputs.geothermalCapacityKw = geoKw;
+    inputs.solarPvKwp = pvKwp;
+    inputs.solarBapvKwp = bapvKwp;
+    inputs.solarBipvKwp = bipvKwp;
+    var investment = getTotalEnergyFacilityCost(inputs.geothermalOptimize, true);
+    if (investment == null || !Number.isFinite(investment)) investment = 0;
+    var taxSave = getAcquisitionTaxSaveAmount();
+    if (taxSave == null || !Number.isFinite(taxSave)) taxSave = 0;
+    var annualSave = getTotalEnergyCostSaveAmount();
+    if (annualSave == null || !Number.isFinite(annualSave)) annualSave = 0;
+    var rate = getSelfSufficiencyRate();
+    var proj = getProjectionDataFromParams(investment, taxSave, annualSave);
+    var npv = calcNPV(proj.cashFlows, DISCOUNT_RATE);
+    var irr = calcIRR(proj.cashFlows);
+    inputs.geothermalCapacityKw = savedGeo;
+    inputs.solarPvKwp = savedPv;
+    inputs.solarBapvKwp = savedBapv;
+    inputs.solarBipvKwp = savedBipv;
+    return {
+      investment: investment,
+      taxSave: taxSave,
+      annualSave: annualSave,
+      selfSufficiencyRate: rate,
+      npv: npv,
+      irr: irr
+    };
+  }
+
+  /** 옥상 최대 PV: 간이계산기와 동일 (옥상면적 × 70% × 100 W) → kWp */
+  function getMaxPvKwpFromRoof(roofAreaM2) {
+    if (!Number.isFinite(roofAreaM2) || roofAreaM2 <= 0) return 0;
+    return roofAreaM2 * 0.7 * 0.1;
+  }
+
+  /** 부지 최대 지열: 정사각형 부지, 간격 7m, 1기당 3 USRT */
+  function getMaxGeoKwFromSite(siteAreaM2) {
+    if (!Number.isFinite(siteAreaM2) || siteAreaM2 <= 0) return 0;
+    var side = Math.sqrt(siteAreaM2);
+    var boreholesPerSide = Math.floor(side / 7) + 1;
+    var totalBoreholes = boreholesPerSide * boreholesPerSide;
+    var maxUSRT = totalBoreholes * 3;
+    return maxUSRT * KW_PER_USRT;
+  }
+
+  /** 자립률 목표에 맞춰 지열·PV·BAPV·BIPV 채우기 (옥상/부지 제한 반영) 후 결과 표시 */
+  function runOptimizer() {
+    var resultEl = document.getElementById("optimizerResult");
+    var targetVal = parseFloat(document.getElementById("optimizerTargetSelfSufficiency").value, 10);
+    if (!Number.isFinite(targetVal) || targetVal < 0 || targetVal > 100) {
+      if (resultEl) resultEl.innerHTML = "<p class=\"optimizer-result-error\">자립률 목표를 0~100 사이 숫자로 입력해 주세요.</p>";
+      return;
+    }
+    var areaVal = parseFloat(document.getElementById("optimizerAreaM2").value, 10);
+    if (!Number.isFinite(areaVal) || areaVal <= 0) {
+      if (resultEl) resultEl.innerHTML = "<p class=\"optimizer-result-error\">연면적을 입력해 주세요.</p>";
+      return;
+    }
+    var roofVal = parseFloat(document.getElementById("optimizerRoofAreaM2").value, 10);
+    var siteVal = parseFloat(document.getElementById("optimizerSiteAreaM2").value, 10);
+    if (!Number.isFinite(roofVal) || roofVal < 0) roofVal = 0;
+    if (!Number.isFinite(siteVal) || siteVal < 0) siteVal = 0;
+
+    var geoOptCheck = document.getElementById("optimizerGeothermalOptimize");
+    if (geoOptCheck) inputs.geothermalOptimize = geoOptCheck.checked;
+    var geoOptTab2 = document.getElementById("geothermalOptimize");
+    if (geoOptTab2) geoOptTab2.checked = !!inputs.geothermalOptimize;
+
+    var householdVal = document.getElementById("optimizerHouseholdCount").value;
+    var householdNum = householdVal === "" ? 0 : parseFloat(householdVal, 10);
+    if (!Number.isFinite(householdNum) || householdNum < 0) householdNum = 0;
+
+    inputs.areaM2 = areaVal;
+    inputs.householdCount = householdNum;
+    var areaEl = document.getElementById("areaM2");
+    var householdEl = document.getElementById("householdCount");
+    if (areaEl) areaEl.value = areaVal;
+    if (householdEl) householdEl.value = householdNum;
+
+    var required = getPrimaryEnergyRequired();
+    if (required == null || !Number.isFinite(required) || required <= 0) {
+      if (resultEl) resultEl.innerHTML = "<p class=\"optimizer-result-error\">연면적을 확인해 주세요.</p>";
+      return;
+    }
+    var targetProduction = (targetVal / 100) * required;
+    var maxPv = getMaxPvKwpFromRoof(roofVal);
+    var maxGeo = getMaxGeoKwFromSite(siteVal);
+
+    var geo = 0;
+    var pv = 0;
+    var bapv = 0;
+    var bipv = 0;
+    var mode = inputs.optimizerMode;
+    var remaining = targetProduction;
+
+    if (mode === "investment") {
+      pv = Math.min(maxPv, remaining / 2000);
+      if (!Number.isFinite(pv) || pv < 0) pv = 0;
+      remaining -= pv * 2000;
+      geo = Math.min(maxGeo, remaining / 638);
+      if (!Number.isFinite(geo) || geo < 0) geo = 0;
+      remaining -= geo * 638;
+      if (remaining > 0) {
+        bapv = remaining / 1111;
+        if (!Number.isFinite(bapv) || bapv < 0) bapv = 0;
+        remaining -= bapv * 1111;
+        if (remaining > 0) bipv = remaining / 1111;
+      }
+    } else {
+      geo = Math.min(maxGeo, remaining / 638);
+      if (!Number.isFinite(geo) || geo < 0) geo = 0;
+      remaining -= geo * 638;
+      pv = Math.min(maxPv, remaining / 2000);
+      if (!Number.isFinite(pv) || pv < 0) pv = 0;
+      remaining -= pv * 2000;
+      if (remaining > 0) {
+        bapv = remaining / 1111;
+        if (!Number.isFinite(bapv) || bapv < 0) bapv = 0;
+        remaining -= bapv * 1111;
+        if (remaining > 0) bipv = remaining / 1111;
+      }
+    }
+
+    var m = getScenarioMetrics(geo, pv, bapv, bipv);
+    var rate = m.selfSufficiencyRate;
+    if (rate == null || !Number.isFinite(rate) || rate < targetVal - 0.5) {
+      if (resultEl) resultEl.innerHTML = "<p class=\"optimizer-result-error\">자립률 " + targetVal + "%를 만족하는 조합을 찾지 못했습니다. 옥상면적·부지면적을 늘리거나 목표를 낮춰 주세요.</p>";
+      return;
+    }
+
+    var html = "<div class=\"optimizer-result-box\">";
+    html += "<h4 class=\"optimizer-result-title\">최적 시나리오</h4>";
+    html += "<ul class=\"optimizer-result-list\">";
+    html += "<li><strong>연면적</strong> " + (areaVal % 1 === 0 ? areaVal : areaVal.toFixed(1)) + " m²</li>";
+    html += "<li><strong>세대수</strong> " + (householdNum % 1 === 0 ? householdNum : householdNum.toFixed(0)) + " 세대</li>";
+    html += "<li><strong>지열</strong> " + (geo % 1 === 0 ? geo : geo.toFixed(1)) + " kW</li>";
+    html += "<li><strong>PV</strong> " + (pv % 1 === 0 ? pv : pv.toFixed(1)) + " kWp</li>";
+    if (bapv > 0.01) html += "<li><strong>BAPV</strong> " + (bapv % 1 === 0 ? bapv : bapv.toFixed(1)) + " kWp</li>";
+    if (bipv > 0.01) html += "<li><strong>BIPV</strong> " + (bipv % 1 === 0 ? bipv : bipv.toFixed(1)) + " kWp</li>";
+    html += "<li><strong>자립률</strong> " + (rate != null && Number.isFinite(rate) ? rate.toFixed(1) : "—") + " %</li>";
+    html += "<li><strong>추가 투자비(경제성 기준)</strong> " + formatWon(m.investment) + "</li>";
+    html += "<li><strong>NPV</strong> " + (Number.isFinite(m.npv) ? formatWon(Math.round(m.npv)) : "—") + "</li>";
+    html += "<li><strong>IRR</strong> " + (Number.isFinite(m.irr) ? (m.irr * 100).toFixed(2) + "%" : "—") + "</li>";
+    html += "</ul>";
+    html += "<button type=\"button\" class=\"optimizer-apply-btn\" id=\"optimizerApplyBtn\">이 결과를 투자비산출에 반영</button>";
+    html += "</div>";
+    if (resultEl) resultEl.innerHTML = html;
+
+    var applyBtn = document.getElementById("optimizerApplyBtn");
+    if (applyBtn) {
+      applyBtn.addEventListener("click", function () {
+        inputs.areaM2 = areaVal;
+        inputs.householdCount = householdNum;
+        inputs.geothermalCapacityKw = geo;
+        inputs.solarPvKwp = pv;
+        inputs.solarBapvKwp = bapv > 0.01 ? bapv : "";
+        inputs.solarBipvKwp = bipv > 0.01 ? bipv : "";
+        inputs.checkGeothermal = geo > 0;
+        inputs.checkPv = pv > 0;
+        inputs.checkBapv = bapv > 0.01;
+        inputs.checkBipv = bipv > 0.01;
+        var areaInput = document.getElementById("areaM2");
+        var householdInput = document.getElementById("householdCount");
+        var geoEl = document.getElementById("geothermalCapacityKw");
+        var pvEl = document.getElementById("solarPvKwp");
+        var bapvEl = document.getElementById("solarBapvKwp");
+        var bipvEl = document.getElementById("solarBipvKwp");
+        var checkGeo = document.getElementById("checkGeothermal");
+        var checkPv = document.getElementById("checkPv");
+        var checkBapv = document.getElementById("checkBapv");
+        var checkBipv = document.getElementById("checkBipv");
+        var rowGeo = document.getElementById("renewableRowGeothermal");
+        var rowPv = document.getElementById("renewableRowPv");
+        var rowBapv = document.getElementById("renewableRowBapv");
+        var rowBipv = document.getElementById("renewableRowBipv");
+        if (areaInput) areaInput.value = areaVal;
+        if (householdInput) householdInput.value = householdNum;
+        if (geoEl) geoEl.value = geo;
+        if (pvEl) pvEl.value = pv;
+        if (bapvEl) bapvEl.value = bapv > 0.01 ? bapv : "";
+        if (bipvEl) bipvEl.value = bipv > 0.01 ? bipv : "";
+        if (checkGeo) { checkGeo.checked = geo > 0; if (rowGeo) rowGeo.style.display = geo > 0 ? "block" : "none"; }
+        if (checkPv) { checkPv.checked = pv > 0; if (rowPv) rowPv.style.display = pv > 0 ? "block" : "none"; }
+        if (checkBapv) { checkBapv.checked = bapv > 0.01; if (rowBapv) rowBapv.style.display = bapv > 0.01 ? "block" : "none"; }
+        if (checkBipv) { checkBipv.checked = bipv > 0.01; if (rowBipv) rowBipv.style.display = bipv > 0.01 ? "block" : "none"; }
+        var geoOptCheck = document.getElementById("optimizerGeothermalOptimize");
+        if (geoOptCheck) inputs.geothermalOptimize = geoOptCheck.checked;
+        var geoOptTab2 = document.getElementById("geothermalOptimize");
+        if (geoOptTab2) geoOptTab2.checked = !!inputs.geothermalOptimize;
+        refreshAll();
+      });
+    }
   }
 
   function updateNpvIrrReport() {
@@ -1370,6 +2023,428 @@
       }
       tbody.innerHTML = rows;
     }
+  }
+
+  function updateSensitivityTable() {
+    var rangeEl = document.getElementById("sensitivityRange");
+    var varEl = document.getElementById("sensitivityVariable");
+    if (!rangeEl || !varEl) return;
+    var range = parseFloat(rangeEl.value, 10);
+    if (!Number.isFinite(range) || range < 1 || range > 50) range = 10;
+    var variable = varEl.value;
+    var mults = [
+      1 - range / 100,
+      1 - range / 200,
+      1,
+      1 + range / 200,
+      1 + range / 100
+    ];
+    var pctLabels = [-range, -range / 2, 0, range / 2, range];
+    for (var c = 0; c < 5; c++) {
+      var colEl = document.getElementById("sensitivityCol" + c);
+      if (colEl) colEl.textContent = pctLabels[c] + "%";
+    }
+    var inv0 = getTotalEnergyFacilityCost(inputs.geothermalOptimize, true);
+    var tax0 = getAcquisitionTaxSaveAmount();
+    if (tax0 == null || !Number.isFinite(tax0)) tax0 = 0;
+    var smp0 = parseFloat(inputs.smpWonPerKwh, 10);
+    var gas0 = parseFloat(inputs.gasWonPerMj, 10);
+    var baseSaves = getEnergySaves({});
+    var empty = "—";
+    var npvValues = [];
+    var irrValues = [];
+    function setCell(id, text) {
+      var el = document.getElementById(id);
+      if (el) el.textContent = text;
+    }
+    for (var i = 0; i < 5; i++) {
+      var m = mults[i];
+      var inv = (inv0 != null && Number.isFinite(inv0)) ? inv0 : 0;
+      var tax = tax0;
+      var smp = Number.isFinite(smp0) ? smp0 : 0;
+      var gas = Number.isFinite(gas0) ? gas0 : 0;
+      if (variable === "investment") {
+        inv = inv * m;
+      } else if (variable === "smp") {
+        smp = smp * m;
+      } else if (variable === "gas") {
+        gas = gas * m;
+      } else if (variable === "taxSave") {
+        tax = tax * m;
+      }
+      var saves = baseSaves;
+      if (variable === "smp" && Number.isFinite(smp0)) {
+        saves = getEnergySaves({ smp: smp });
+      } else if (variable === "gas" && Number.isFinite(gas0)) {
+        saves = getEnergySaves({ gasWonPerMj: gas });
+      }
+      var totalSave = saves.totalSave;
+      var netInv = inv - tax;
+      var payback = (totalSave != null && Number.isFinite(totalSave) && totalSave > 0 && netInv >= 0)
+        ? (netInv / totalSave)
+        : null;
+      var proj = getProjectionDataFromParams(inv, tax, totalSave);
+      var npv = calcNPV(proj.cashFlows, DISCOUNT_RATE);
+      var irr = calcIRR(proj.cashFlows);
+      npvValues.push(Number.isFinite(npv) ? npv : null);
+      irrValues.push(Number.isFinite(irr) ? irr * 100 : null);
+      setCell("sensElec" + i, saves.electricitySave != null && Number.isFinite(saves.electricitySave) ? formatWon(Math.round(saves.electricitySave)) : empty);
+      setCell("sensGas" + i, saves.gasSave != null && Number.isFinite(saves.gasSave) ? formatWon(Math.round(saves.gasSave)) : empty);
+      setCell("sensTotal" + i, totalSave != null && Number.isFinite(totalSave) ? formatWon(Math.round(totalSave)) : empty);
+      setCell("sensPayback" + i, payback != null && Number.isFinite(payback) ? (payback % 1 === 0 ? Math.round(payback) : payback.toFixed(1)) + "년" : empty);
+      setCell("sensNpv" + i, Number.isFinite(npv) ? formatWon(Math.round(npv)) : empty);
+      setCell("sensIrr" + i, Number.isFinite(irr) ? (irr * 100).toFixed(2) + "%" : empty);
+    }
+    updateSensitivityCharts(pctLabels, npvValues, irrValues);
+  }
+
+  function updateSensitivityCharts(labels, npvValues, irrValues) {
+    var npvWrap = document.getElementById("sensitivityNpvChart");
+    var irrWrap = document.getElementById("sensitivityIrrChart");
+    var npvWrapFinal = document.getElementById("finalSensitivityNpvChart");
+    var irrWrapFinal = document.getElementById("finalSensitivityIrrChart");
+    if (!npvWrap && !irrWrap && !npvWrapFinal && !irrWrapFinal) return;
+    var n = labels.length;
+    var w = 320;
+    var h = 200;
+    var pad = { top: 20, right: 20, bottom: 36, left: 52 };
+    var chartW = w - pad.left - pad.right;
+    var chartH = h - pad.top - pad.bottom;
+
+    function scaleNpv() {
+      var dataMin = Infinity;
+      var dataMax = -Infinity;
+      for (var i = 0; i < n; i++) {
+        var v = npvValues[i];
+        if (v != null && Number.isFinite(v)) {
+          if (v < dataMin) dataMin = v;
+          if (v > dataMax) dataMax = v;
+        }
+      }
+      if (dataMin === Infinity) dataMin = 0;
+      if (dataMax === -Infinity) dataMax = 0;
+      var axisMax = dataMax * 1.2;
+      var axisMin = dataMin - dataMax * 1.2;
+      if (dataMax === 0 && dataMin === 0) {
+        axisMin = -1;
+        axisMax = 1;
+      } else if (axisMin >= axisMax) {
+        axisMin = dataMin - Math.abs(dataMax - dataMin) || dataMin - 1;
+        axisMax = dataMax + Math.abs(dataMax - dataMin) || dataMax + 1;
+      }
+      return {
+        min: axisMin,
+        max: axisMax,
+        toY: function (v) {
+          if (v == null || !Number.isFinite(v)) return pad.top + chartH / 2;
+          var t = (v - axisMin) / (axisMax - axisMin);
+          return pad.top + chartH * (1 - t);
+        }
+      };
+    }
+
+    function scaleIrr() {
+      var dataMin = Infinity;
+      var dataMax = -Infinity;
+      for (var i = 0; i < n; i++) {
+        var v = irrValues[i];
+        if (v != null && Number.isFinite(v)) {
+          if (v < dataMin) dataMin = v;
+          if (v > dataMax) dataMax = v;
+        }
+      }
+      if (dataMin === Infinity) dataMin = 0;
+      if (dataMax === -Infinity) dataMax = 10;
+      var axisMax = dataMax * 1.2;
+      var axisMin = dataMin - dataMax * 1.2;
+      if (dataMax === 0 && dataMin === 0) {
+        axisMin = 0;
+        axisMax = 10;
+      } else if (axisMin >= axisMax) {
+        var range = Math.abs(dataMax - dataMin) || 5;
+        axisMin = dataMin - range;
+        axisMax = dataMax + range;
+      }
+      return {
+        min: axisMin,
+        max: axisMax,
+        toY: function (v) {
+          if (v == null || !Number.isFinite(v)) return pad.top + chartH / 2;
+          var t = (v - axisMin) / (axisMax - axisMin);
+          return pad.top + chartH * (1 - t);
+        }
+      };
+    }
+
+    var npvScale = scaleNpv();
+    var irrScale = scaleIrr();
+    var barW = Math.max(12, (chartW / n) * 0.5);
+    var gap = chartW / n;
+    var barX = function (i) { return pad.left + (i + 0.5) * gap - barW / 2; };
+
+    var zeroY = (0 >= npvScale.min && 0 <= npvScale.max)
+      ? npvScale.toY(0)
+      : (0 >= npvScale.max ? pad.top : pad.top + chartH);
+
+    var svgNpv = '<svg class="sensitivity-svg" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="xMidYMid meet">';
+    svgNpv += '<line x1="' + pad.left + '" y1="' + (pad.top + chartH) + '" x2="' + (w - pad.right) + '" y2="' + (pad.top + chartH) + '" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>';
+    svgNpv += '<line x1="' + pad.left + '" y1="' + pad.top + '" x2="' + pad.left + '" y2="' + (pad.top + chartH) + '" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>';
+    if (zeroY > pad.top && zeroY < pad.top + chartH) {
+      svgNpv += '<line x1="' + pad.left + '" y1="' + zeroY + '" x2="' + (w - pad.right) + '" y2="' + zeroY + '" stroke="rgba(255,255,255,0.15)" stroke-width="1" stroke-dasharray="4,2"/>';
+    }
+    for (var i = 0; i < n; i++) {
+      var v = npvValues[i];
+      var yVal = npvScale.toY(v);
+      var by = Math.min(yVal, zeroY);
+      var bh = Math.abs(yVal - zeroY);
+      if (v != null && Number.isFinite(v)) {
+        var fill = v >= 0 ? "rgba(0, 242, 255, 0.7)" : "rgba(255, 100, 100, 0.6)";
+        svgNpv += '<rect x="' + barX(i) + '" y="' + by + '" width="' + barW + '" height="' + bh + '" fill="' + fill + '" rx="2"/>';
+      }
+      svgNpv += '<text x="' + (pad.left + (i + 0.5) * gap) + '" y="' + (h - 8) + '" text-anchor="middle" fill="var(--text-soft)" font-size="11">' + labels[i] + '%</text>';
+    }
+    var npvMin = npvScale.min;
+    var npvMax = npvScale.max;
+    if (Number.isFinite(npvMin) && Number.isFinite(npvMax)) {
+      svgNpv += '<text x="' + (pad.left - 6) + '" y="' + (pad.top + 4) + '" text-anchor="end" fill="var(--text-soft)" font-size="10">' + (npvMax >= 1e8 ? (npvMax / 1e8).toFixed(1) + "억" : Math.round(npvMax).toLocaleString("ko-KR")) + '</text>';
+      svgNpv += '<text x="' + (pad.left - 6) + '" y="' + (pad.top + chartH) + '" text-anchor="end" fill="var(--text-soft)" font-size="10">' + (npvMin >= 1e8 || npvMin <= -1e8 ? (npvMin / 1e8).toFixed(1) + "억" : Math.round(npvMin).toLocaleString("ko-KR")) + '</text>';
+    }
+    svgNpv += '</svg>';
+    if (npvWrap) npvWrap.innerHTML = svgNpv;
+    if (npvWrapFinal) npvWrapFinal.innerHTML = svgNpv;
+
+    var svgIrr = '<svg class="sensitivity-svg" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="xMidYMid meet">';
+    svgIrr += '<line x1="' + pad.left + '" y1="' + (pad.top + chartH) + '" x2="' + (w - pad.right) + '" y2="' + (pad.top + chartH) + '" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>';
+    svgIrr += '<line x1="' + pad.left + '" y1="' + pad.top + '" x2="' + pad.left + '" y2="' + (pad.top + chartH) + '" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>';
+    var irrPath = [];
+    for (var i = 0; i < n; i++) {
+      var v = irrValues[i];
+      var y = irrScale.toY(v);
+      if (v != null && Number.isFinite(v)) {
+        var rx = pad.left + (i + 0.5) * gap;
+        irrPath.push(rx + "," + y);
+      }
+    }
+    if (irrPath.length > 1) {
+      svgIrr += '<polyline points="' + irrPath.join(" ") + '" fill="none" stroke="var(--color-1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+    }
+    for (var i = 0; i < n; i++) {
+      var v = irrValues[i];
+      var y = irrScale.toY(v);
+      if (v != null && Number.isFinite(v)) {
+        svgIrr += '<circle cx="' + (pad.left + (i + 0.5) * gap) + '" cy="' + y + '" r="5" fill="var(--color-1)" stroke="rgba(255,255,255,0.4)" stroke-width="1"/>';
+      }
+      svgIrr += '<text x="' + (pad.left + (i + 0.5) * gap) + '" y="' + (h - 8) + '" text-anchor="middle" fill="var(--text-soft)" font-size="11">' + labels[i] + '%</text>';
+    }
+    var irrMin = irrScale.min;
+    var irrMax = irrScale.max;
+    if (Number.isFinite(irrMin) && Number.isFinite(irrMax)) {
+      svgIrr += '<text x="' + (pad.left - 6) + '" y="' + (pad.top + 4) + '" text-anchor="end" fill="var(--text-soft)" font-size="10">' + irrMax.toFixed(1) + '%</text>';
+      svgIrr += '<text x="' + (pad.left - 6) + '" y="' + (pad.top + chartH) + '" text-anchor="end" fill="var(--text-soft)" font-size="10">' + irrMin.toFixed(1) + '%</text>';
+    }
+    svgIrr += '</svg>';
+    if (irrWrap) irrWrap.innerHTML = svgIrr;
+    if (irrWrapFinal) irrWrapFinal.innerHTML = svgIrr;
+  }
+
+  function updateFinalReport() {
+    var invBody = document.getElementById("finalReportInvestmentBody");
+    var econBody = document.getElementById("finalReportEconomicsBody");
+    var sensBody = document.getElementById("finalReportSensitivityBody");
+    var sensNote = document.getElementById("finalReportSensitivityNote");
+    if (!invBody || !econBody || !sensBody) return;
+
+    function pair(label, value) {
+      if (!label && (value == null || value === "")) {
+        return "<td class=\"final-report-label\"></td><td class=\"final-report-value\"></td>";
+      }
+      var v = value != null && value !== "" ? value : "—";
+      return "<td class=\"final-report-label\">" + (label || "") + "</td><td class=\"final-report-value\">" + v + "</td>";
+    }
+
+    function row2(label1, value1, label2, value2) {
+      return "<tr>" + pair(label1, value1) + pair(label2, value2) + "</tr>";
+    }
+
+    var area = parseFloat(inputs.areaM2, 10);
+    var constructionCost = getConstructionCost();
+    var primaryReq = getPrimaryEnergyRequired();
+    var primaryProd = calcPrimaryEnergyProduction();
+    var selfRate = getSelfSufficiencyRate();
+    var grade = getGradeFromSelfSufficiency(selfRate);
+    var taxSave = getAcquisitionTaxSaveAmount();
+    var totalInv = getTotalEnergyFacilityCost(false, false);
+    var costAfterTax = totalInv != null && taxSave != null && Number.isFinite(totalInv) && Number.isFinite(taxSave) ? Math.max(0, totalInv - taxSave) : null;
+
+    var areaStr = Number.isFinite(area) && area >= 0 ? Math.round(area).toLocaleString("ko-KR") + " m²" : null;
+    var hhStr = inputs.householdCount ? inputs.householdCount + " 세대" : null;
+    var avgAreaStr = inputs.avgDedicatedAreaM2 ? inputs.avgDedicatedAreaM2 + " m²" : null;
+    var costStr = constructionCost != null && Number.isFinite(constructionCost) ? formatWon(constructionCost) : null;
+    var geoStr = inputs.checkGeothermal && inputs.geothermalCapacityKw ? inputs.geothermalCapacityKw + " kW" : "—";
+    var pvStr = inputs.checkPv && inputs.solarPvKwp ? inputs.solarPvKwp + " kWp" : "—";
+    var bapvStr = inputs.checkBapv && inputs.solarBapvKwp ? inputs.solarBapvKwp + " kWp" : "—";
+    var bipvStr = inputs.checkBipv && inputs.solarBipvKwp ? inputs.solarBipvKwp + " kWp" : "—";
+    var primaryReqStr = primaryReq != null && Number.isFinite(primaryReq) ? Math.round(primaryReq).toLocaleString("ko-KR") + " kWh/yr" : null;
+    var primaryProdStr = primaryProd != null && Number.isFinite(primaryProd) ? Math.round(primaryProd).toLocaleString("ko-KR") + " kWh/yr" : null;
+    var selfRateStr = selfRate != null && Number.isFinite(selfRate) ? selfRate.toFixed(1) + "%" : null;
+    var gradeStr = grade != null ? grade + "등급" : null;
+    var taxSaveStr = taxSave != null && Number.isFinite(taxSave) ? formatWon(taxSave) : null;
+    var totalInvStr = totalInv != null && Number.isFinite(totalInv) ? formatWon(totalInv) : null;
+    var costAfterTaxStr = costAfterTax != null && Number.isFinite(costAfterTax) ? formatWon(costAfterTax) : null;
+
+    var invHtml = "";
+    invHtml += row2("연면적", areaStr, "세대수", hhStr);
+    invHtml += row2("평균 전용면적", avgAreaStr, "", "");
+    invHtml += row2("지열 설치용량", geoStr, "PV 설치용량", pvStr);
+    invHtml += row2("BAPV 설치용량", bapvStr, "BIPV 설치용량", bipvStr);
+    invHtml += row2("1차에너지 소요량", primaryReqStr, "1차에너지생산량", primaryProdStr);
+    invHtml += row2("자립률", selfRateStr, "ZEB 등급", gradeStr);
+    invBody.innerHTML = invHtml;
+
+    var invTab2 = getTotalEnergyFacilityCost(inputs.geothermalOptimize, true);
+    var annualSave = getTotalEnergyCostSaveAmount();
+    var elecUse = getTotalElectricityUseKwh();
+    var gasUse = getTotalGasUseKwh();
+    var taxSaveNum = getAcquisitionTaxSaveAmount();
+    if (taxSaveNum == null) taxSaveNum = 0;
+    var netInv = (invTab2 != null && Number.isFinite(invTab2)) ? invTab2 - taxSaveNum : null;
+    var payback = (annualSave != null && Number.isFinite(annualSave) && annualSave > 0 && netInv != null && netInv >= 0) ? (netInv / annualSave) : null;
+    var proj = getProjectionData();
+    var npv = proj && proj.cashFlows ? calcNPV(proj.cashFlows, DISCOUNT_RATE) : null;
+    var irr = proj && proj.cashFlows ? calcIRR(proj.cashFlows) : null;
+    var saves = getEnergySaves({});
+
+    var econHtml = "";
+    function cell(cls, text, allowEmpty) {
+      var v = (text != null && text !== "") ? text : (allowEmpty ? "" : "—");
+      return "<td class=\"" + cls + "\">" + v + "</td>";
+    }
+    function row4(l1, v1, l2, v2) {
+      return "<tr>" + cell("final-report-label", l1, true) + cell("final-report-value", v1, false) + cell("final-report-label", l2, true) + cell("final-report-value", v2, false) + "</tr>";
+    }
+    econHtml += row4(
+      "추가 에너지설비 투자비",
+      invTab2 != null && Number.isFinite(invTab2) ? formatWon(invTab2) : null,
+      "취득세 절감",
+      taxSaveNum !== 0 && Number.isFinite(taxSaveNum) ? formatWon(taxSaveNum) : null
+    );
+    econHtml += row4(
+      "연간 전력 사용량",
+      elecUse != null && Number.isFinite(elecUse) ? Math.round(elecUse).toLocaleString("ko-KR") + " kWh/yr" : null,
+      "연간 가스 사용량",
+      gasUse != null && Number.isFinite(gasUse) ? Math.round(gasUse).toLocaleString("ko-KR") + " kWh/yr" : null
+    );
+    econHtml += row4(
+      "전기 단가",
+      inputs.smpWonPerKwh ? Number(inputs.smpWonPerKwh).toLocaleString("ko-KR") + " 원/kWh" : null,
+      "가스 단가",
+      inputs.gasWonPerMj ? Number(inputs.gasWonPerMj).toLocaleString("ko-KR") + " 원/MJ" : null
+    );
+    econHtml += row4(
+      "전력요금 절감",
+      saves.electricitySave != null && Number.isFinite(saves.electricitySave) ? formatWon(Math.round(saves.electricitySave)) + "/yr" : null,
+      "가스요금 절감",
+      saves.gasSave != null && Number.isFinite(saves.gasSave) ? formatWon(Math.round(saves.gasSave)) + "/yr" : null
+    );
+    econHtml += "<tr>" + cell("final-report-label", "총 에너지비용 절감", true) + cell("final-report-value", annualSave != null && Number.isFinite(annualSave) ? formatWon(Math.round(annualSave)) + "/yr" : null, false) + cell("final-report-label", "간이 투자회수기간", true) + cell("final-report-value", payback != null && Number.isFinite(payback) ? (payback % 1 === 0 ? Math.round(payback) : payback.toFixed(1)) + "년" : null, false) + "</tr>";
+    econHtml += "<tr>" + cell("final-report-label", "NPV", true) + cell("final-report-value", npv != null && Number.isFinite(npv) ? formatWon(Math.round(npv)) : null, false) + cell("final-report-label", "IRR", true) + cell("final-report-value", irr != null && Number.isFinite(irr) ? (irr * 100).toFixed(2) + "%" : null, false) + "</tr>";
+    econBody.innerHTML = econHtml;
+
+    var rangeEl = document.getElementById("sensitivityRange");
+    var varEl = document.getElementById("sensitivityVariable");
+    var range = (rangeEl && Number.isFinite(parseFloat(rangeEl.value, 10))) ? parseFloat(rangeEl.value, 10) : 10;
+    var variable = varEl ? varEl.value : "investment";
+    var varNames = { investment: "투자비", smp: "전기세", gas: "가스요금", taxSave: "취득세절감" };
+    var pctLabels = [-range, -range / 2, 0, range / 2, range];
+    for (var c = 0; c < 5; c++) {
+      var colEl = document.getElementById("finalSensCol" + c);
+      if (colEl) colEl.textContent = pctLabels[c] + "%";
+    }
+    if (sensNote) sensNote.textContent = "변수: " + (varNames[variable] || variable) + ", 범위: ±" + range + "%";
+
+    var mults = [1 - range / 100, 1 - range / 200, 1, 1 + range / 200, 1 + range / 100];
+    var inv0 = getTotalEnergyFacilityCost(inputs.geothermalOptimize, true);
+    var tax0 = getAcquisitionTaxSaveAmount();
+    if (tax0 == null) tax0 = 0;
+    var smp0 = parseFloat(inputs.smpWonPerKwh, 10);
+    var gas0 = parseFloat(inputs.gasWonPerMj, 10);
+    var baseSaves = getEnergySaves({});
+    var sensRows = [];
+    var sensRowNames = ["전력요금 절감", "가스요금 절감", "총 에너지비용 절감", "간이투자회수 기간", "NPV", "IRR"];
+    for (var i = 0; i < 5; i++) {
+      var m = mults[i];
+      var inv = (inv0 != null && Number.isFinite(inv0)) ? inv0 : 0;
+      var tax = tax0;
+      var smp = Number.isFinite(smp0) ? smp0 : 0;
+      var gas = Number.isFinite(gas0) ? gas0 : 0;
+      if (variable === "investment") inv = inv * m;
+      else if (variable === "smp") smp = smp * m;
+      else if (variable === "gas") gas = gas * m;
+      else if (variable === "taxSave") tax = tax * m;
+      var savesI = baseSaves;
+      if (variable === "smp" && Number.isFinite(smp0)) savesI = getEnergySaves({ smp: smp });
+      else if (variable === "gas" && Number.isFinite(gas0)) savesI = getEnergySaves({ gasWonPerMj: gas });
+      var totalSave = savesI.totalSave;
+      var netInvI = inv - tax;
+      var paybackI = (totalSave != null && Number.isFinite(totalSave) && totalSave > 0 && netInvI >= 0) ? (netInvI / totalSave) : null;
+      var projI = getProjectionDataFromParams(inv, tax, totalSave);
+      var npvI = calcNPV(projI.cashFlows, DISCOUNT_RATE);
+      var irrI = calcIRR(projI.cashFlows);
+      sensRows.push({
+        elec: savesI.electricitySave != null && Number.isFinite(savesI.electricitySave) ? formatWon(Math.round(savesI.electricitySave)) : "—",
+        gas: savesI.gasSave != null && Number.isFinite(savesI.gasSave) ? formatWon(Math.round(savesI.gasSave)) : "—",
+        total: totalSave != null && Number.isFinite(totalSave) ? formatWon(Math.round(totalSave)) : "—",
+        payback: paybackI != null && Number.isFinite(paybackI) ? (paybackI % 1 === 0 ? Math.round(paybackI) : paybackI.toFixed(1)) + "년" : "—",
+        npv: Number.isFinite(npvI) ? formatWon(Math.round(npvI)) : "—",
+        irr: Number.isFinite(irrI) ? (irrI * 100).toFixed(2) + "%" : "—"
+      });
+    }
+    var sensHtml = "";
+    for (var r = 0; r < 6; r++) {
+      sensHtml += "<tr><td class=\"final-report-label\">" + sensRowNames[r] + "</td>";
+      for (var i = 0; i < 5; i++) {
+        var key = ["elec", "gas", "total", "payback", "npv", "irr"][r];
+        sensHtml += "<td class=\"final-report-value\">" + sensRows[i][key] + "</td>";
+      }
+      sensHtml += "</tr>";
+    }
+    sensBody.innerHTML = sensHtml;
+  }
+
+  function openReportPrintWindow() {
+    updateFinalReport();
+    var reportEl = document.querySelector(".final-report");
+    if (!reportEl) return;
+    var printContent = "";
+    for (var i = 0; i < reportEl.children.length; i++) {
+      var c = reportEl.children[i];
+      if (c.classList && c.classList.contains("final-report-actions")) continue;
+      printContent += c.outerHTML;
+    }
+    var styleStr = ":root{--bg-deep:#0a0e14;--color-1:#00f2ff;--text:#e0e6ed;--text-soft:#94a3b8;}";
+    styleStr += "body{background:var(--bg-deep);color:var(--text);font-family:'Pretendard',sans-serif;margin:24px;line-height:1.6;}";
+    styleStr += ".final-report-main-title{font-size:1.5rem;font-weight:800;margin:0 0 8px 0;}";
+    styleStr += ".final-report-desc{color:var(--text-soft);font-size:0.9rem;margin:0 0 24px 0;}";
+    styleStr += ".final-report-section{margin-bottom:32px;}";
+    styleStr += ".final-report-section-title{font-size:1.05rem;font-weight:700;color:var(--color-1);margin:0 0 14px 0;padding-bottom:8px;border-bottom:1px solid rgba(0,242,255,0.25);}";
+    styleStr += ".final-report-table-wrap{background:rgba(255,255,255,0.02);border-radius:16px;border:1px solid rgba(255,255,255,0.08);padding:4px;overflow-x:auto;}";
+    styleStr += ".final-report-table{width:100%;border-collapse:collapse;font-size:0.9rem;}";
+    styleStr += ".final-report-table th,.final-report-table td{padding:10px 14px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.06);}";
+    styleStr += ".final-report-table thead th{font-weight:700;background:rgba(0,242,255,0.06);border-bottom:1px solid rgba(255,255,255,0.12);}";
+    styleStr += ".final-report-label{font-weight:600;color:var(--text-soft);white-space:nowrap;}";
+    styleStr += ".final-report-value{color:var(--text);font-weight:500;}";
+    styleStr += ".final-report-note{font-size:0.8rem;color:var(--text-soft);margin:10px 0 0 0;}";
+    styleStr += ".sensitivity-charts{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:20px;}";
+    styleStr += ".sensitivity-chart-box{background:rgba(255,255,255,0.02);border-radius:16px;border:1px solid rgba(255,255,255,0.08);padding:16px;}";
+    styleStr += ".sensitivity-chart-title{font-size:0.95rem;font-weight:700;margin:0 0 12px 0;}";
+    styleStr += ".sensitivity-chart-svg-wrap{width:100%;min-height:200px;}";
+    styleStr += ".sensitivity-svg{width:100%;height:auto;min-height:200px;}";
+    var fullHtml = "<!DOCTYPE html><html lang=\"ko\"><head><meta charset=\"utf-8\"><title>최종보고서</title><style>" + styleStr + "</style></head><body><div class=\"final-report\">" + printContent + "</div></body></html>";
+    var win = window.open("", "_blank", "width=900,height=900,scrollbars=yes,resizable=yes");
+    if (!win) return;
+    win.document.open();
+    win.document.write(fullHtml);
+    win.document.close();
   }
 
   function updateAcquisitionTaxSave() {
