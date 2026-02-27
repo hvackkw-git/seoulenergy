@@ -786,6 +786,7 @@
             </section>
             <div class="final-report-actions">
               <button type="button" id="finalReportPrintBtn" class="final-report-print-btn">출력</button>
+              <button type="button" id="finalReportExcelBtn" class="final-report-excel-btn">엑셀</button>
             </div>
           </div>
         </div>
@@ -1021,6 +1022,8 @@
     bindOptimizerInputs();
     var printBtn = document.getElementById("finalReportPrintBtn");
     if (printBtn) printBtn.addEventListener("click", openReportPrintWindow);
+    var excelBtn = document.getElementById("finalReportExcelBtn");
+    if (excelBtn) excelBtn.addEventListener("click", downloadFinalReportExcel);
 
     refreshAll();
   }
@@ -2457,6 +2460,69 @@
     win.document.open();
     win.document.write(fullHtml);
     win.document.close();
+  }
+
+  function downloadFinalReportExcel() {
+    if (typeof XLSX === "undefined") {
+      alert("엑셀 내보내기를 사용할 수 없습니다. (XLSX 라이브러리 로드 필요)");
+      return;
+    }
+    updateFinalReport();
+
+    function tableBodyToRows(tbody) {
+      if (!tbody) return [];
+      var rows = [];
+      var trs = tbody.querySelectorAll("tr");
+      for (var r = 0; r < trs.length; r++) {
+        var tds = trs[r].querySelectorAll("td");
+        var row = [];
+        for (var c = 0; c < tds.length; c++) row.push((tds[c].textContent || "").trim());
+        rows.push(row);
+      }
+      return rows;
+    }
+
+    var invBody = document.getElementById("finalReportInvestmentBody");
+    var econBody = document.getElementById("finalReportEconomicsBody");
+    var sensBody = document.getElementById("finalReportSensitivityBody");
+    var sensTable = sensBody ? sensBody.closest("table") : null;
+    var sensHeader = [];
+    if (sensTable && sensTable.tHead) {
+      var ths = sensTable.tHead.querySelectorAll("th");
+      for (var i = 0; i < ths.length; i++) sensHeader.push((ths[i].textContent || "").trim());
+    }
+    var invRows = tableBodyToRows(invBody);
+    var econRows = tableBodyToRows(econBody);
+    var sensRows = tableBodyToRows(sensBody);
+
+    var wsInv = XLSX.utils.aoa_to_sheet([["항목", "값", "항목", "값"]].concat(invRows));
+    var wsEcon = XLSX.utils.aoa_to_sheet([["항목", "값", "항목", "값"]].concat(econRows));
+    var sensData = sensHeader.length ? [sensHeader] : [];
+    sensData = sensData.concat(sensRows);
+    var wsSens = XLSX.utils.aoa_to_sheet(sensData);
+
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, wsInv, "투자비 산출 요약");
+    XLSX.utils.book_append_sheet(wb, wsEcon, "경제성 분석 요약");
+    XLSX.utils.book_append_sheet(wb, wsSens, "민감도 분석 요약");
+
+    var now = new Date();
+    var yy = String(now.getFullYear()).slice(-2);
+    var mm = String(now.getMonth() + 1).padStart(2, "0");
+    var dd = String(now.getDate()).padStart(2, "0");
+    var hh = String(now.getHours()).padStart(2, "0");
+    var mi = String(now.getMinutes()).padStart(2, "0");
+    var ss = String(now.getSeconds()).padStart(2, "0");
+    var filename = yy + mm + dd + "_최종보고서(" + hh + mi + ss + ").xlsx";
+    var buf = XLSX.write(wb, { bookType: "xlsx", type: "arraybuffer" });
+    var blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    window.open(url);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
   }
 
   function copyFinalReportSectionToClipboard(btn) {

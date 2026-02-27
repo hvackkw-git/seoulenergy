@@ -1049,23 +1049,40 @@ input:focus {
   margin-top: 28px;
   padding-top: 20px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
-.final-report-print-btn {
+.final-report-print-btn,
+.final-report-excel-btn {
   padding: 12px 28px;
   border: none;
   border-radius: 12px;
-  background: linear-gradient(135deg, var(--color-1), var(--color-2));
-  color: var(--bg-deep);
   font-size: 1rem;
   font-weight: 700;
   font-family: inherit;
   cursor: pointer;
+}
+
+.final-report-print-btn {
+  background: linear-gradient(135deg, var(--color-1), var(--color-2));
+  color: var(--bg-deep);
   box-shadow: 0 4px 20px rgba(0, 242, 255, 0.35);
 }
 
 .final-report-print-btn:hover {
   box-shadow: 0 6px 24px rgba(0, 242, 255, 0.45);
+}
+
+.final-report-excel-btn {
+  background: linear-gradient(135deg, #217346, #1e5c3a);
+  color: #fff;
+  box-shadow: 0 4px 20px rgba(33, 115, 70, 0.35);
+}
+
+.final-report-excel-btn:hover {
+  box-shadow: 0 6px 24px rgba(33, 115, 70, 0.45);
 }
 
 /* 최적값찾기 */
