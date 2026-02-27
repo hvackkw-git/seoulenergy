@@ -986,6 +986,29 @@ input:focus {
   border-color: var(--color-1);
 }
 
+.final-chart-copy-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.final-chart-copy-btn {
+  padding: 5px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-soft);
+  font-size: 0.75rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.final-chart-copy-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text);
+}
+
 .final-report-table-wrap {
   overflow-x: auto;
   background: rgba(255, 255, 255, 0.02);

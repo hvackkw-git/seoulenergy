@@ -729,10 +729,7 @@
             <p class="final-report-desc">투자비산출·경제성분석·민감도분석 결과를 한눈에 확인합니다.</p>
 
             <section class="final-report-section">
-              <div class="final-report-section-head">
-                <h3 class="final-report-section-title">1. 투자비 산출 요약</h3>
-                <button type="button" class="final-report-copy-btn" data-section="1">이미지 클립보드로 복사</button>
-              </div>
+              <h3 class="final-report-section-title">1. 투자비 산출 요약</h3>
               <div class="final-report-table-wrap">
                 <table class="final-report-table">
                   <tbody id="finalReportInvestmentBody"></tbody>
@@ -741,10 +738,7 @@
             </section>
 
             <section class="final-report-section">
-              <div class="final-report-section-head">
-                <h3 class="final-report-section-title">2. 경제성 분석 요약</h3>
-                <button type="button" class="final-report-copy-btn" data-section="2">이미지 클립보드로 복사</button>
-              </div>
+              <h3 class="final-report-section-title">2. 경제성 분석 요약</h3>
               <div class="final-report-table-wrap">
                 <table class="final-report-table final-report-table-economics">
                   <tbody id="finalReportEconomicsBody"></tbody>
@@ -753,10 +747,7 @@
             </section>
 
             <section class="final-report-section">
-              <div class="final-report-section-head">
-                <h3 class="final-report-section-title">3. 민감도 분석 요약</h3>
-                <button type="button" class="final-report-copy-btn" data-section="3">이미지 클립보드로 복사</button>
-              </div>
+              <h3 class="final-report-section-title">3. 민감도 분석 요약</h3>
               <div class="final-report-table-wrap">
                 <table class="final-report-table final-report-table-sensitivity">
                   <thead>
@@ -773,7 +764,7 @@
                 </table>
               </div>
               <p class="final-report-note" id="finalReportSensitivityNote">민감도 범위 및 변수는 민감도분석 탭에서 설정한 값을 사용합니다.</p>
-              <div class="sensitivity-charts final-sensitivity-charts">
+              <div class="sensitivity-charts final-sensitivity-charts" id="finalSensitivityChartsWrap">
                 <div class="sensitivity-chart-box">
                   <h4 class="sensitivity-chart-title">NPV 민감도</h4>
                   <div class="sensitivity-chart-svg-wrap" id="finalSensitivityNpvChart"></div>
@@ -781,6 +772,9 @@
                 <div class="sensitivity-chart-box">
                   <h4 class="sensitivity-chart-title">IRR 민감도</h4>
                   <div class="sensitivity-chart-svg-wrap" id="finalSensitivityIrrChart"></div>
+                </div>
+                <div class="final-chart-copy-row">
+                  <button type="button" class="final-chart-copy-btn" id="copyChartsBtn">이미지 클립보드로 복사</button>
                 </div>
               </div>
             </section>
@@ -2463,168 +2457,184 @@
   }
 
   function downloadFinalReportExcel() {
-    if (typeof XLSX === "undefined") {
-      alert("엑셀 내보내기를 사용할 수 없습니다. (XLSX 라이브러리 로드 필요)");
+    if (typeof JSZip === "undefined") {
+      alert("엑셀 내보내기를 사용할 수 없습니다. (JSZip 로드 필요)");
       return;
     }
-    try {
-      updateFinalReport();
+    updateFinalReport();
 
-      function tableBodyToRows(tbody) {
-        if (!tbody) return [];
-        var rows = [];
-        var trs = tbody.querySelectorAll("tr");
-        for (var r = 0; r < trs.length; r++) {
-          var tds = trs[r].querySelectorAll("td");
-          var row = [];
-          for (var c = 0; c < tds.length; c++) row.push((tds[c].textContent || "").trim());
-          rows.push(row);
-        }
-        return rows;
+    function tableBodyToRows(tbody) {
+      if (!tbody) return [];
+      var rows = [];
+      var trs = tbody.querySelectorAll("tr");
+      for (var r = 0; r < trs.length; r++) {
+        var tds = trs[r].querySelectorAll("td");
+        var row = [];
+        for (var c = 0; c < tds.length; c++) row.push((tds[c].textContent || "").trim());
+        rows.push(row);
       }
-
-      var invBody = document.getElementById("finalReportInvestmentBody");
-      var econBody = document.getElementById("finalReportEconomicsBody");
-      var sensBody = document.getElementById("finalReportSensitivityBody");
-      var sensTable = sensBody ? sensBody.closest("table") : null;
-      var sensHeader = [];
-      if (sensTable && sensTable.tHead) {
-        var ths = sensTable.tHead.querySelectorAll("th");
-        for (var i = 0; i < ths.length; i++) sensHeader.push((ths[i].textContent || "").trim());
-      }
-      var invRows = tableBodyToRows(invBody);
-      var econRows = tableBodyToRows(econBody);
-      var sensRows = tableBodyToRows(sensBody);
-
-      // --- 총괄 화면 시트 (셀 병합 포함) ---
-      var ov = [];
-      var merges = [];
-      var r = 0;
-
-      function addPairRow(l1, v1, l2, v2) {
-        ov.push([l1 || "", v1 || "", "", l2 || "", v2 || "", ""]);
-        merges.push({s:{r:r,c:1}, e:{r:r,c:2}});
-        if (l2 || v2) merges.push({s:{r:r,c:4}, e:{r:r,c:5}});
-        r++;
-      }
-      function addEmptyRow() { ov.push(["","","","","",""]); r++; }
-
-      for (var i = 0; i < invRows.length; i++) {
-        var row = invRows[i];
-        if (i === 1) {
-          addPairRow(row[0], row[1], "에너지믹스 방향", "");
-        } else {
-          addPairRow(row[0], row[1], row[2], row[3]);
-        }
-        if (i === 1) addEmptyRow();
-      }
-      addEmptyRow();
-      for (var i = 0; i < econRows.length; i++) {
-        var row = econRows[i];
-        addPairRow(row[0], row[1], row[2], row[3]);
-      }
-      addEmptyRow();
-      if (sensHeader.length) { ov.push(sensHeader); r++; }
-      for (var i = 0; i < sensRows.length; i++) { ov.push(sensRows[i]); r++; }
-
-      var rangeEl = document.getElementById("sensitivityRange");
-      var varEl = document.getElementById("sensitivityVariable");
-      var sensRange = (rangeEl && Number.isFinite(parseFloat(rangeEl.value, 10))) ? parseFloat(rangeEl.value, 10) : 10;
-      var sensVar = varEl ? varEl.value : "investment";
-      var sensVarNames = { investment: "투자비", smp: "전기세", gas: "가스요금", taxSave: "취득세절감" };
-      addEmptyRow();
-      addPairRow("민감도 분석 변수", sensVarNames[sensVar] || sensVar, "범위", "±" + sensRange + "%");
-
-      var wsOv = XLSX.utils.aoa_to_sheet(ov);
-      wsOv["!merges"] = merges;
-      wsOv["!cols"] = [
-        {wch:22},{wch:22},{wch:16},{wch:20},{wch:22},{wch:16}
-      ];
-
-      var wsInv = XLSX.utils.aoa_to_sheet([["항목", "값", "항목", "값"]].concat(invRows));
-      var wsEcon = XLSX.utils.aoa_to_sheet([["항목", "값", "항목", "값"]].concat(econRows));
-      var sensData = sensHeader.length ? [sensHeader] : [];
-      sensData = sensData.concat(sensRows);
-      var wsSens = XLSX.utils.aoa_to_sheet(sensData);
-
-      var wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, wsOv, "총괄");
-      XLSX.utils.book_append_sheet(wb, wsInv, "투자비 산출 요약");
-      XLSX.utils.book_append_sheet(wb, wsEcon, "경제성 분석 요약");
-      XLSX.utils.book_append_sheet(wb, wsSens, "민감도 분석 요약");
-
-      var now = new Date();
-      var yy = String(now.getFullYear()).slice(-2);
-      var mm = String(now.getMonth() + 1).padStart(2, "0");
-      var dd = String(now.getDate()).padStart(2, "0");
-      var hh = String(now.getHours()).padStart(2, "0");
-      var mi = String(now.getMinutes()).padStart(2, "0");
-      var ss = String(now.getSeconds()).padStart(2, "0");
-      var filename = yy + mm + dd + "_최종보고서(" + hh + mi + ss + ").xlsx";
-
-      XLSX.writeFile(wb, filename);
-
-      setTimeout(function () {
-        alert("엑셀 파일이 다운로드되었습니다.\n다운로드 폴더에서 '" + filename + "' 파일을 열어주세요.");
-      }, 300);
-    } catch (e) {
-      alert("엑셀 저장 중 오류가 발생했습니다: " + (e && e.message ? e.message : String(e)));
+      return rows;
     }
+
+    var invBody = document.getElementById("finalReportInvestmentBody");
+    var econBody = document.getElementById("finalReportEconomicsBody");
+    var sensBody = document.getElementById("finalReportSensitivityBody");
+    var sensTable = sensBody ? sensBody.closest("table") : null;
+    var sensHeader = [];
+    if (sensTable && sensTable.tHead) {
+      var ths = sensTable.tHead.querySelectorAll("th");
+      for (var i = 0; i < ths.length; i++) sensHeader.push((ths[i].textContent || "").trim());
+    }
+    var invRows = tableBodyToRows(invBody);
+    var econRows = tableBodyToRows(econBody);
+    var sensRows = tableBodyToRows(sensBody);
+
+    var rangeEl = document.getElementById("sensitivityRange");
+    var varEl = document.getElementById("sensitivityVariable");
+    var sensRange = (rangeEl && Number.isFinite(parseFloat(rangeEl.value, 10))) ? parseFloat(rangeEl.value, 10) : 10;
+    var sensVar = varEl ? varEl.value : "investment";
+    var sensVarNames = { investment: "투자비", smp: "전기세", gas: "가스요금", taxSave: "취득세절감" };
+    var sensVarLabel = sensVarNames[sensVar] || sensVar;
+
+    var now = new Date();
+    var yy = String(now.getFullYear()).slice(-2);
+    var mm = String(now.getMonth() + 1).padStart(2, "0");
+    var dd = String(now.getDate()).padStart(2, "0");
+    var hh = String(now.getHours()).padStart(2, "0");
+    var mi = String(now.getMinutes()).padStart(2, "0");
+    var ss = String(now.getSeconds()).padStart(2, "0");
+    var filename = yy + mm + dd + "_최종보고서(" + hh + mi + ss + ").xlsm";
+
+    var cellMap = {};
+    function set(cell, val) { cellMap[cell] = val != null ? String(val) : ""; }
+    if (invRows[0]) { set("B1", invRows[0][1]); set("E1", invRows[0][3]); }
+    if (invRows[1]) { set("B2", invRows[1][1]); }
+    if (invRows[2]) { set("B4", invRows[2][1]); set("E4", invRows[2][3]); }
+    if (invRows[3]) { set("B5", invRows[3][1]); set("E5", invRows[3][3]); }
+    if (invRows[4]) { set("B6", invRows[4][1]); set("E6", invRows[4][3]); }
+    if (invRows[5]) { set("B7", invRows[5][1]); set("E7", invRows[5][3]); }
+    if (econRows[0]) { set("B9", econRows[0][1]); set("E9", econRows[0][3]); }
+    if (econRows[1]) { set("B10", econRows[1][1]); set("E10", econRows[1][3]); }
+    if (econRows[2]) { set("B11", econRows[2][1]); set("E11", econRows[2][3]); }
+    if (econRows[3]) { set("B12", econRows[3][1]); set("E12", econRows[3][3]); }
+    if (econRows[4]) { set("B13", econRows[4][1]); set("E13", econRows[4][3]); }
+    if (econRows[5]) { set("B14", econRows[5][1]); set("E14", econRows[5][3]); }
+    var cols = ["A", "B", "C", "D", "E", "F"];
+    for (var c = 1; c < 6 && c < sensHeader.length; c++) set(cols[c] + "16", sensHeader[c]);
+    for (var i = 0; i < sensRows.length && i < 6; i++) {
+      for (var c = 0; c < 6 && c < sensRows[i].length; c++) set(cols[c] + (17 + i), sensRows[i][c]);
+    }
+    set("B24", sensVarLabel);
+    set("E24", "±" + sensRange + "%");
+
+    function replaceCell(xml, ref, newVal) {
+      var esc = newVal.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      var re = new RegExp('(<c\\s+r="' + ref + '"\\s+s=")(\\d+)"[^>]*>.*?</c>', "g");
+      return xml.replace(re, '$1$2" t="inlineStr"><is><t>' + esc + "</t></is></c>");
+    }
+
+    fetch("보고서양식.xlsm")
+      .then(function (res) {
+        if (!res.ok) throw new Error("보고서 양식 파일을 불러올 수 없습니다.");
+        return res.arrayBuffer();
+      })
+      .then(function (buf) { return JSZip.loadAsync(buf); })
+      .then(function (zip) {
+        return zip.file("xl/worksheets/sheet2.xml").async("string").then(function (xml) {
+          var keys = Object.keys(cellMap);
+          for (var i = 0; i < keys.length; i++) {
+            xml = replaceCell(xml, keys[i], cellMap[keys[i]]);
+          }
+          zip.file("xl/worksheets/sheet2.xml", xml);
+          return zip.generateAsync({
+            type: "blob",
+            mimeType: "application/vnd.ms-excel.sheet.macroEnabled.12"
+          });
+        });
+      })
+      .then(function (blob) {
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function () {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 1000);
+      })
+      .catch(function (err) {
+        alert("엑셀 저장 중 오류: " + (err && err.message ? err.message : String(err)));
+      });
   }
 
-  function copyFinalReportSectionToClipboard(btn) {
+  function copySensitivityChartsToClipboard() {
     if (typeof html2canvas === "undefined") {
       alert("이미지 복사 기능을 사용할 수 없습니다. (html2canvas 로드 필요)");
       return;
     }
-    var section = btn && btn.closest && btn.closest(".final-report-section");
-    if (!section) return;
-    var sectionNum = parseInt(btn.getAttribute("data-section"), 10);
-    if (!Number.isFinite(sectionNum) || sectionNum < 1 || sectionNum > 3) return;
+    var wrap = document.getElementById("finalSensitivityChartsWrap");
+    if (!wrap) return;
+    var btn = document.getElementById("copyChartsBtn");
+    if (btn) btn.disabled = true;
 
-    var mmToPx = function (mm) { return (mm / 25.4) * 96; };
-    var targetW = Math.round(mmToPx(270));
-    var targetH1 = Math.round(mmToPx(80));
+    var clone = wrap.cloneNode(true);
+    clone.style.position = "absolute";
+    clone.style.left = "-9999px";
+    clone.style.top = "0";
+    clone.style.width = wrap.offsetWidth + "px";
+    var copyRow = clone.querySelector(".final-chart-copy-row");
+    if (copyRow) copyRow.parentNode.removeChild(copyRow);
+    document.body.appendChild(clone);
 
-    btn.disabled = true;
-    html2canvas(section, {
-      useCORS: true,
-      allowTaint: true,
-      scale: 2,
-      backgroundColor: null,
-      ignoreElements: function (el) {
-        return el.classList && el.classList.contains("final-report-copy-btn");
-      }
-    }).then(function (canvas) {
-      var w = canvas.width;
-      var h = canvas.height;
-      var outW = targetW;
-      var outH = sectionNum === 1 ? targetH1 : Math.max(1, Math.round((h / w) * targetW));
-      var out = document.createElement("canvas");
-      out.width = outW;
-      out.height = outH;
-      var ctx = out.getContext("2d");
-      ctx.fillStyle = "#0a0e14";
-      ctx.fillRect(0, 0, outW, outH);
-      ctx.drawImage(canvas, 0, 0, w, h, 0, 0, outW, outH);
-      return out.toBlob("image/png");
-    }).then(function (blob) {
-      if (!blob) return Promise.reject(new Error("Blob 생성 실패"));
-      return navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-    }).then(function () {
-      alert("클립보드에 이미지가 복사되었습니다.");
-    }).catch(function (err) {
-      alert("복사에 실패했습니다: " + (err && err.message ? err.message : "알 수 없는 오류"));
-    }).finally(function () {
-      btn.disabled = false;
+    clone.querySelectorAll(".sensitivity-chart-box").forEach(function (box) {
+      box.style.background = "#f9f9f9";
+      box.style.border = "1px solid #ddd";
+    });
+    clone.querySelectorAll(".sensitivity-chart-title").forEach(function (t) {
+      t.style.color = "#111";
+    });
+    clone.querySelectorAll(".sensitivity-svg").forEach(function (svg) {
+      svg.querySelectorAll("line").forEach(function (l) { l.setAttribute("stroke", "rgba(0,0,0,0.2)"); });
+      svg.querySelectorAll("text").forEach(function (t) { t.setAttribute("fill", "#000"); });
+      svg.querySelectorAll("rect").forEach(function (r) { r.setAttribute("fill", "#0056b3"); r.removeAttribute("fill-opacity"); });
+      svg.querySelectorAll("circle").forEach(function (c) {
+        c.setAttribute("fill", "#0056b3");
+        c.setAttribute("stroke", "rgba(0,0,0,0.2)");
+      });
+      svg.querySelectorAll("polyline").forEach(function (p) { p.setAttribute("stroke", "#0056b3"); });
+    });
+
+    requestAnimationFrame(function () {
+    setTimeout(function () {
+      html2canvas(clone, {
+        useCORS: true,
+        scale: 2,
+        backgroundColor: "#ffffff"
+      }).then(function (canvas) {
+        return new Promise(function (resolve) { canvas.toBlob(resolve, "image/png"); });
+      }).then(function (blob) {
+        if (!blob) return Promise.reject(new Error("Blob 생성 실패"));
+        return navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+      }).then(function () {
+        alert("차트 이미지가 클립보드에 복사되었습니다.");
+      }).catch(function (err) {
+        alert("복사에 실패했습니다: " + (err && err.message ? err.message : "알 수 없는 오류"));
+      }).finally(function () {
+        document.body.removeChild(clone);
+        if (btn) btn.disabled = false;
+      });
+    }, 100);
     });
   }
 
   document.addEventListener("click", function (e) {
-    var btn = e.target && e.target.closest && e.target.closest(".final-report-copy-btn");
-    if (!btn) return;
-    e.preventDefault();
-    copyFinalReportSectionToClipboard(btn);
+    if (e.target && e.target.id === "copyChartsBtn") {
+      e.preventDefault();
+      copySensitivityChartsToClipboard();
+    }
   });
 
   function updateAcquisitionTaxSave() {
