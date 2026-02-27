@@ -729,7 +729,10 @@
             <p class="final-report-desc">투자비산출·경제성분석·민감도분석 결과를 한눈에 확인합니다.</p>
 
             <section class="final-report-section">
-              <h3 class="final-report-section-title">1. 투자비 산출 요약</h3>
+              <div class="final-report-section-head">
+                <h3 class="final-report-section-title">1. 투자비 산출 요약</h3>
+                <button type="button" class="final-report-copy-btn" data-section="1">이미지 클립보드로 복사</button>
+              </div>
               <div class="final-report-table-wrap">
                 <table class="final-report-table">
                   <tbody id="finalReportInvestmentBody"></tbody>
@@ -738,7 +741,10 @@
             </section>
 
             <section class="final-report-section">
-              <h3 class="final-report-section-title">2. 경제성 분석 요약</h3>
+              <div class="final-report-section-head">
+                <h3 class="final-report-section-title">2. 경제성 분석 요약</h3>
+                <button type="button" class="final-report-copy-btn" data-section="2">이미지 클립보드로 복사</button>
+              </div>
               <div class="final-report-table-wrap">
                 <table class="final-report-table final-report-table-economics">
                   <tbody id="finalReportEconomicsBody"></tbody>
@@ -747,7 +753,10 @@
             </section>
 
             <section class="final-report-section">
-              <h3 class="final-report-section-title">3. 민감도 분석 요약</h3>
+              <div class="final-report-section-head">
+                <h3 class="final-report-section-title">3. 민감도 분석 요약</h3>
+                <button type="button" class="final-report-copy-btn" data-section="3">이미지 클립보드로 복사</button>
+              </div>
               <div class="final-report-table-wrap">
                 <table class="final-report-table final-report-table-sensitivity">
                   <thead>
@@ -2198,8 +2207,8 @@
       var by = Math.min(yVal, zeroY);
       var bh = Math.abs(yVal - zeroY);
       if (v != null && Number.isFinite(v)) {
-        var fill = v >= 0 ? "rgba(0, 242, 255, 0.7)" : "rgba(255, 100, 100, 0.6)";
-        svgNpv += '<rect x="' + barX(i) + '" y="' + by + '" width="' + barW + '" height="' + bh + '" fill="' + fill + '" rx="2"/>';
+        var fill = "var(--color-1)";
+        svgNpv += '<rect x="' + barX(i) + '" y="' + by + '" width="' + barW + '" height="' + bh + '" fill="' + fill + '" fill-opacity="0.85" rx="2"/>';
       }
       svgNpv += '<text x="' + (pad.left + (i + 0.5) * gap) + '" y="' + (h - 8) + '" text-anchor="middle" fill="var(--text-soft)" font-size="11">' + labels[i] + '%</text>';
     }
@@ -2427,6 +2436,9 @@
     styleStr += ".final-report-desc{color:#555;font-size:0.9rem;margin:0 0 24px 0;}";
     styleStr += ".final-report-section{margin-bottom:32px;}";
     styleStr += ".final-report-section-title{font-size:1.05rem;font-weight:700;color:#0066cc;margin:0 0 14px 0;padding-bottom:8px;border-bottom:1px solid #ccc;}";
+    styleStr += ".final-report-section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}";
+    styleStr += ".final-report-section-head .final-report-section-title{margin:0;padding-bottom:8px;border-bottom:1px solid #ccc;}";
+    styleStr += ".final-report-copy-btn{display:none;}";
     styleStr += ".final-report-table-wrap{background:#f9f9f9;border-radius:8px;border:1px solid #ddd;padding:4px;overflow-x:auto;}";
     styleStr += ".final-report-table{width:100%;border-collapse:collapse;font-size:0.9rem;}";
     styleStr += ".final-report-table th,.final-report-table td{padding:10px 14px;text-align:left;border-bottom:1px solid #e0e0e0;}";
@@ -2446,6 +2458,61 @@
     win.document.write(fullHtml);
     win.document.close();
   }
+
+  function copyFinalReportSectionToClipboard(btn) {
+    if (typeof html2canvas === "undefined") {
+      alert("이미지 복사 기능을 사용할 수 없습니다. (html2canvas 로드 필요)");
+      return;
+    }
+    var section = btn && btn.closest && btn.closest(".final-report-section");
+    if (!section) return;
+    var sectionNum = parseInt(btn.getAttribute("data-section"), 10);
+    if (!Number.isFinite(sectionNum) || sectionNum < 1 || sectionNum > 3) return;
+
+    var mmToPx = function (mm) { return (mm / 25.4) * 96; };
+    var targetW = Math.round(mmToPx(270));
+    var targetH1 = Math.round(mmToPx(80));
+
+    btn.disabled = true;
+    html2canvas(section, {
+      useCORS: true,
+      allowTaint: true,
+      scale: 2,
+      backgroundColor: null,
+      ignoreElements: function (el) {
+        return el.classList && el.classList.contains("final-report-copy-btn");
+      }
+    }).then(function (canvas) {
+      var w = canvas.width;
+      var h = canvas.height;
+      var outW = targetW;
+      var outH = sectionNum === 1 ? targetH1 : Math.max(1, Math.round((h / w) * targetW));
+      var out = document.createElement("canvas");
+      out.width = outW;
+      out.height = outH;
+      var ctx = out.getContext("2d");
+      ctx.fillStyle = "#0a0e14";
+      ctx.fillRect(0, 0, outW, outH);
+      ctx.drawImage(canvas, 0, 0, w, h, 0, 0, outW, outH);
+      return out.toBlob("image/png");
+    }).then(function (blob) {
+      if (!blob) return Promise.reject(new Error("Blob 생성 실패"));
+      return navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+    }).then(function () {
+      alert("클립보드에 이미지가 복사되었습니다.");
+    }).catch(function (err) {
+      alert("복사에 실패했습니다: " + (err && err.message ? err.message : "알 수 없는 오류"));
+    }).finally(function () {
+      btn.disabled = false;
+    });
+  }
+
+  document.addEventListener("click", function (e) {
+    var btn = e.target && e.target.closest && e.target.closest(".final-report-copy-btn");
+    if (!btn) return;
+    e.preventDefault();
+    copyFinalReportSectionToClipboard(btn);
+  });
 
   function updateAcquisitionTaxSave() {
     var cost = getConstructionCost();

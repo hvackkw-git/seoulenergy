@@ -953,6 +953,39 @@ input:focus {
   border-bottom: 1px solid rgba(0, 242, 255, 0.25);
 }
 
+.final-report-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.final-report-section-head .final-report-section-title {
+  margin: 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(0, 242, 255, 0.25);
+}
+
+.final-report-copy-btn {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border: 1px solid rgba(0, 242, 255, 0.4);
+  border-radius: 10px;
+  background: rgba(0, 242, 255, 0.1);
+  color: var(--color-1);
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.final-report-copy-btn:hover {
+  background: rgba(0, 242, 255, 0.2);
+  border-color: var(--color-1);
+}
+
 .final-report-table-wrap {
   overflow-x: auto;
   background: rgba(255, 255, 255, 0.02);
