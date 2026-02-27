@@ -2467,62 +2467,109 @@
       alert("엑셀 내보내기를 사용할 수 없습니다. (XLSX 라이브러리 로드 필요)");
       return;
     }
-    updateFinalReport();
+    try {
+      updateFinalReport();
 
-    function tableBodyToRows(tbody) {
-      if (!tbody) return [];
-      var rows = [];
-      var trs = tbody.querySelectorAll("tr");
-      for (var r = 0; r < trs.length; r++) {
-        var tds = trs[r].querySelectorAll("td");
-        var row = [];
-        for (var c = 0; c < tds.length; c++) row.push((tds[c].textContent || "").trim());
-        rows.push(row);
+      function tableBodyToRows(tbody) {
+        if (!tbody) return [];
+        var rows = [];
+        var trs = tbody.querySelectorAll("tr");
+        for (var r = 0; r < trs.length; r++) {
+          var tds = trs[r].querySelectorAll("td");
+          var row = [];
+          for (var c = 0; c < tds.length; c++) row.push((tds[c].textContent || "").trim());
+          rows.push(row);
+        }
+        return rows;
       }
-      return rows;
+
+      var invBody = document.getElementById("finalReportInvestmentBody");
+      var econBody = document.getElementById("finalReportEconomicsBody");
+      var sensBody = document.getElementById("finalReportSensitivityBody");
+      var sensTable = sensBody ? sensBody.closest("table") : null;
+      var sensHeader = [];
+      if (sensTable && sensTable.tHead) {
+        var ths = sensTable.tHead.querySelectorAll("th");
+        for (var i = 0; i < ths.length; i++) sensHeader.push((ths[i].textContent || "").trim());
+      }
+      var invRows = tableBodyToRows(invBody);
+      var econRows = tableBodyToRows(econBody);
+      var sensRows = tableBodyToRows(sensBody);
+
+      // --- 총괄 화면 시트 (셀 병합 포함) ---
+      var ov = [];
+      var merges = [];
+      var r = 0;
+
+      function addPairRow(l1, v1, l2, v2) {
+        ov.push([l1 || "", v1 || "", "", l2 || "", v2 || "", ""]);
+        merges.push({s:{r:r,c:1}, e:{r:r,c:2}});
+        if (l2 || v2) merges.push({s:{r:r,c:4}, e:{r:r,c:5}});
+        r++;
+      }
+      function addEmptyRow() { ov.push(["","","","","",""]); r++; }
+
+      for (var i = 0; i < invRows.length; i++) {
+        var row = invRows[i];
+        if (i === 1) {
+          addPairRow(row[0], row[1], "에너지믹스 방향", "");
+        } else {
+          addPairRow(row[0], row[1], row[2], row[3]);
+        }
+        if (i === 1) addEmptyRow();
+      }
+      addEmptyRow();
+      for (var i = 0; i < econRows.length; i++) {
+        var row = econRows[i];
+        addPairRow(row[0], row[1], row[2], row[3]);
+      }
+      addEmptyRow();
+      if (sensHeader.length) { ov.push(sensHeader); r++; }
+      for (var i = 0; i < sensRows.length; i++) { ov.push(sensRows[i]); r++; }
+
+      var rangeEl = document.getElementById("sensitivityRange");
+      var varEl = document.getElementById("sensitivityVariable");
+      var sensRange = (rangeEl && Number.isFinite(parseFloat(rangeEl.value, 10))) ? parseFloat(rangeEl.value, 10) : 10;
+      var sensVar = varEl ? varEl.value : "investment";
+      var sensVarNames = { investment: "투자비", smp: "전기세", gas: "가스요금", taxSave: "취득세절감" };
+      addEmptyRow();
+      addPairRow("민감도 분석 변수", sensVarNames[sensVar] || sensVar, "범위", "±" + sensRange + "%");
+
+      var wsOv = XLSX.utils.aoa_to_sheet(ov);
+      wsOv["!merges"] = merges;
+      wsOv["!cols"] = [
+        {wch:22},{wch:22},{wch:16},{wch:20},{wch:22},{wch:16}
+      ];
+
+      var wsInv = XLSX.utils.aoa_to_sheet([["항목", "값", "항목", "값"]].concat(invRows));
+      var wsEcon = XLSX.utils.aoa_to_sheet([["항목", "값", "항목", "값"]].concat(econRows));
+      var sensData = sensHeader.length ? [sensHeader] : [];
+      sensData = sensData.concat(sensRows);
+      var wsSens = XLSX.utils.aoa_to_sheet(sensData);
+
+      var wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, wsOv, "총괄");
+      XLSX.utils.book_append_sheet(wb, wsInv, "투자비 산출 요약");
+      XLSX.utils.book_append_sheet(wb, wsEcon, "경제성 분석 요약");
+      XLSX.utils.book_append_sheet(wb, wsSens, "민감도 분석 요약");
+
+      var now = new Date();
+      var yy = String(now.getFullYear()).slice(-2);
+      var mm = String(now.getMonth() + 1).padStart(2, "0");
+      var dd = String(now.getDate()).padStart(2, "0");
+      var hh = String(now.getHours()).padStart(2, "0");
+      var mi = String(now.getMinutes()).padStart(2, "0");
+      var ss = String(now.getSeconds()).padStart(2, "0");
+      var filename = yy + mm + dd + "_최종보고서(" + hh + mi + ss + ").xlsx";
+
+      XLSX.writeFile(wb, filename);
+
+      setTimeout(function () {
+        alert("엑셀 파일이 다운로드되었습니다.\n다운로드 폴더에서 '" + filename + "' 파일을 열어주세요.");
+      }, 300);
+    } catch (e) {
+      alert("엑셀 저장 중 오류가 발생했습니다: " + (e && e.message ? e.message : String(e)));
     }
-
-    var invBody = document.getElementById("finalReportInvestmentBody");
-    var econBody = document.getElementById("finalReportEconomicsBody");
-    var sensBody = document.getElementById("finalReportSensitivityBody");
-    var sensTable = sensBody ? sensBody.closest("table") : null;
-    var sensHeader = [];
-    if (sensTable && sensTable.tHead) {
-      var ths = sensTable.tHead.querySelectorAll("th");
-      for (var i = 0; i < ths.length; i++) sensHeader.push((ths[i].textContent || "").trim());
-    }
-    var invRows = tableBodyToRows(invBody);
-    var econRows = tableBodyToRows(econBody);
-    var sensRows = tableBodyToRows(sensBody);
-
-    var wsInv = XLSX.utils.aoa_to_sheet([["항목", "값", "항목", "값"]].concat(invRows));
-    var wsEcon = XLSX.utils.aoa_to_sheet([["항목", "값", "항목", "값"]].concat(econRows));
-    var sensData = sensHeader.length ? [sensHeader] : [];
-    sensData = sensData.concat(sensRows);
-    var wsSens = XLSX.utils.aoa_to_sheet(sensData);
-
-    var wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, wsInv, "투자비 산출 요약");
-    XLSX.utils.book_append_sheet(wb, wsEcon, "경제성 분석 요약");
-    XLSX.utils.book_append_sheet(wb, wsSens, "민감도 분석 요약");
-
-    var now = new Date();
-    var yy = String(now.getFullYear()).slice(-2);
-    var mm = String(now.getMonth() + 1).padStart(2, "0");
-    var dd = String(now.getDate()).padStart(2, "0");
-    var hh = String(now.getHours()).padStart(2, "0");
-    var mi = String(now.getMinutes()).padStart(2, "0");
-    var ss = String(now.getSeconds()).padStart(2, "0");
-    var filename = yy + mm + dd + "_최종보고서(" + hh + mi + ss + ").xlsx";
-    var buf = XLSX.write(wb, { bookType: "xlsx", type: "arraybuffer" });
-    var blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    window.open(url);
-    setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
   }
 
   function copyFinalReportSectionToClipboard(btn) {
