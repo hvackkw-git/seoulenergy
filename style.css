@@ -929,6 +929,31 @@ input:focus {
   letter-spacing: -0.02em;
 }
 
+.final-report-main-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.final-report-refresh-btn {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border: 1px solid rgba(0, 242, 255, 0.35);
+  border-radius: 10px;
+  background: rgba(0, 242, 255, 0.08);
+  color: var(--color-1);
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.final-report-refresh-btn:hover {
+  background: rgba(0, 242, 255, 0.18);
+  border-color: var(--color-1);
+}
+
 .final-report-desc {
   font-size: 0.95rem;
   color: var(--text-soft);

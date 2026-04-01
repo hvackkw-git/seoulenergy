@@ -109,6 +109,16 @@
     updateFinalReport();
   }
 
+  /** 현재 DOM 입력값을 기준으로 inputs를 강제 동기화 */
+  function syncInputsFromDom() {
+    var latest = getInputsForSave();
+    var key;
+    for (key in latest) {
+      if (!latest.hasOwnProperty(key)) continue;
+      inputs[key] = latest[key];
+    }
+  }
+
   /** 현재 폼 값으로 저장용 객체 생성 */
   function getInputsForSave() {
     var data = {};
@@ -746,7 +756,10 @@
 
         <div id="tabPanel5" class="tab-panel ${currentTab === 5 ? "is-active" : ""}">
           <div class="final-report">
-            <h2 class="final-report-main-title">최종보고서</h2>
+            <div class="final-report-main-head">
+              <h2 class="final-report-main-title">최종보고서</h2>
+              <button type="button" id="finalReportRefreshBtn" class="final-report-refresh-btn">강제 업데이트</button>
+            </div>
             <p class="final-report-desc">투자비산출·경제성분석·민감도분석 결과를 한눈에 확인합니다.</p>
 
             <section class="final-report-section">
@@ -1049,6 +1062,13 @@
     bindCalcInputs();
     bindSensitivityInputs();
     bindOptimizerInputs();
+    var refreshBtn = document.getElementById("finalReportRefreshBtn");
+    if (refreshBtn) {
+      refreshBtn.addEventListener("click", function () {
+        syncInputsFromDom();
+        refreshAll();
+      });
+    }
     var printBtn = document.getElementById("finalReportPrintBtn");
     if (printBtn) printBtn.addEventListener("click", openReportPrintWindow);
     var excelBtn = document.getElementById("finalReportExcelBtn");
