@@ -10,8 +10,8 @@
     householdCount: "",
     avgDedicatedAreaM2: "85",
     checkGeothermal: false,
+    checkDistrictHeating: false,
     checkPv: false,
-    checkBapv: false,
     checkBipv: false,
     geothermalCapacityKw: "",
     solarPvKwp: "",
@@ -33,6 +33,7 @@
     pipeLength400A: ""
   };
 
+  inputs.primaryEnergySafetyFactor = "1";
   inputs.smpWonPerKwh = "100";
   inputs.gasWonPerMj = "22";
   inputs.geothermalOptimize = false;
@@ -52,6 +53,7 @@
       householdCount: "2235",
       avgDedicatedAreaM2: "72",
       checkGeothermal: true,
+      checkDistrictHeating: false,
       checkPv: true,
       checkBapv: false,
       checkBipv: false,
@@ -75,7 +77,8 @@
       pipeLength400A: "",
       smpWonPerKwh: "100",
       gasWonPerMj: "22",
-      geothermalOptimize: true
+      geothermalOptimize: true,
+      primaryEnergySafetyFactor: "1"
     },
     2: null,
     3: null,
@@ -232,8 +235,9 @@
     areaM2: "공사비 기준: '25년 건축정보시스템 평균 주거용 건축 공사비",
     householdCount: "지열 3USRT = 85㎡ 1세대 공급",
     avgDedicatedAreaM2: "국민평형 = 85㎡",
+    primaryEnergySafetyFactor: "지역난방 비공급 구역 1차에너지 소요량 산정 시 곱하는 안전율. 기본 1, projection 시 변경 가능.",
     pipeCheck: "열수송관 구경별 m당 단가는 각 행의 ? 를 누르면 확인할 수 있습니다.",
-    reportPrimaryEnergyRequired: "연면적 × 연간 단위면적당 에너지소요량(120 kWh/㎡·yr)으로 계산합니다. 자립률 계산의 분모로 사용됩니다.",
+    reportPrimaryEnergyRequired: "지열 공급 구역은 120 kWh/㎡·yr, 비공급 구역(지역난방)은 120×0.375 + 120×0.625×(0.728/1.1)×안전율(kWh/㎡·yr)로 단위소요량을 적용합니다. 연면적을 지열/비공급 비율로 나누어 합산한 값이 1차에너지 소요량(자립률 분모)입니다.",
     reportPrimaryEnergyProduction: "지열·PV·BAPV·BIPV 설비가 연간 생산하는 1차에너지 합계입니다. 자립률 계산의 분자로 사용됩니다.",
     reportSelfSufficiencyRate: "1차에너지생산량 ÷ 1차에너지소요량 × 100 입니다. 이 값으로 ZEB 등급(1~5등급)을 판정합니다.",
     reportAcquisitionTaxSave: "공사비의 3.16%에 ZEB 등급별 비율(1~3등급 20%, 4등급 18%, 5등급 15%)을 곱한 취득세 절감액입니다.",
@@ -306,7 +310,8 @@
                 <input type="number" id="householdCount" placeholder="예: 100" min="0" step="1" value="${inputs.householdCount}" />
                 <span class="result-frame result-frame-household">
                   <span id="geothermalHouseholds">지열세대: —</span><br/>
-                  <span id="nonGeothermalHouseholds">비 지열세대: —</span>
+                  <span id="districtHeatingHouseholds">지역난방세대: —</span><br/>
+                  <span id="nonGeothermalHouseholds">개별난방세대: —</span>
                 </span>
               </div>
               <div class="form-row">
@@ -316,10 +321,25 @@
                 </div>
                 <input type="number" id="avgDedicatedAreaM2" placeholder="예: 85" min="0" step="0.01" value="${inputs.avgDedicatedAreaM2}" />
               </div>
+              <div class="form-row">
+                <div class="form-row-head">
+                  <label>1차에너지 안전율 <span class="unit">(지역난방 비공급 구역)</span></label>
+                  <button type="button" class="help-btn" aria-label="도움말" data-help="primaryEnergySafetyFactor">?</button>
+                </div>
+                <input type="number" id="primaryEnergySafetyFactor" placeholder="1" min="0.01" step="0.01" value="${inputs.primaryEnergySafetyFactor}" />
+              </div>
             </div>
           </div>
           <div class="form-col form-col-middle">
             <div class="form-section form-section-grid">
+              <div class="form-row">
+                <div class="form-row-head">
+                  <span class="form-row-head-label">지역난방 여부</span>
+                </div>
+                <div class="pipe-check-wrap">
+                  <label class="pipe-check"><input type="checkbox" id="checkDistrictHeating" ${inputs.checkDistrictHeating ? "checked" : ""}> 지역난방</label>
+                </div>
+              </div>
               <div class="form-row renewable-check-row">
                 <div class="form-row-head">
                   <span class="form-row-head-label">신재생 설비</span>
@@ -716,6 +736,7 @@
                   <button type="button" class="optimizer-toggle-btn ${inputs.optimizerMode === "economics" ? "is-active" : ""}" data-optimizer-mode="economics">경제성 중심</button>
                 </div>
                 <label class="optimizer-geo-check"><input type="checkbox" id="optimizerGeothermalOptimize" ${inputs.geothermalOptimize ? "checked" : ""}> 지열 최적화</label>
+                <label class="optimizer-geo-check"><input type="checkbox" id="optimizerCheckDistrictHeating" ${inputs.checkDistrictHeating ? "checked" : ""}> 지역난방</label>
                 <button type="button" id="optimizerRunBtn" class="optimizer-run-btn">RUN</button>
               </div>
             </div>
@@ -850,6 +871,8 @@
           if (oh) oh.value = inputs.householdCount || "";
           var oGeo = document.getElementById("optimizerGeothermalOptimize");
           if (oGeo) oGeo.checked = !!inputs.geothermalOptimize;
+          var oDistrict = document.getElementById("optimizerCheckDistrictHeating");
+          if (oDistrict) oDistrict.checked = !!inputs.checkDistrictHeating;
         }
         if (tab === 5) updateFinalReport();
       });
@@ -881,7 +904,7 @@
     }
 
     var ids = [
-      "areaM2", "householdCount", "avgDedicatedAreaM2",
+      "areaM2", "householdCount", "avgDedicatedAreaM2", "primaryEnergySafetyFactor",
       "geothermalCapacityKw", "solarPvKwp", "solarBapvKwp", "solarBipvKwp",
       "pipeLength100A", "pipeLength150A", "pipeLength200A", "pipeLength250A",
       "pipeLength300A", "pipeLength350A", "pipeLength400A"
@@ -963,6 +986,18 @@
         });
       }
     });
+
+    var checkDistrictEl = document.getElementById("checkDistrictHeating");
+    if (checkDistrictEl) {
+      checkDistrictEl.addEventListener("change", function () {
+        inputs.checkDistrictHeating = checkDistrictEl.checked;
+        updateGeothermalHouseholds();
+        updatePrimaryEnergyRequired();
+        updateSelfSufficiencyRate();
+        updateReportGrade();
+        updateAcquisitionTaxSave();
+      });
+    }
 
     var popover = document.getElementById("help-popover");
     if (!popover) {
@@ -1099,6 +1134,19 @@
         inputs.geothermalOptimize = geoOptEl.checked;
         var geoOptTab2 = document.getElementById("geothermalOptimize");
         if (geoOptTab2) geoOptTab2.checked = geoOptEl.checked;
+      });
+    }
+    var districtOptEl = document.getElementById("optimizerCheckDistrictHeating");
+    if (districtOptEl) {
+      districtOptEl.addEventListener("change", function () {
+        inputs.checkDistrictHeating = districtOptEl.checked;
+        var checkDistrictEl = document.getElementById("checkDistrictHeating");
+        if (checkDistrictEl) checkDistrictEl.checked = !!inputs.checkDistrictHeating;
+        updateGeothermalHouseholds();
+        updatePrimaryEnergyRequired();
+        updateSelfSufficiencyRate();
+        updateReportGrade();
+        updateAcquisitionTaxSave();
       });
     }
     var runBtn = document.getElementById("optimizerRunBtn");
@@ -1394,6 +1442,8 @@
   var GAS_SHARE = 0.625;
   var ELECTRICITY_SHARE = 0.375;
   var GAS_PRIMARY_FACTOR = 1.1;
+  /** 지역난방 1차에너지 환산계수 (가스 1.1 대비 비공급 구역 단위소요량 산정용) */
+  var DISTRICT_HEATING_PRIMARY_FACTOR = 0.728;
   var ELECTRICITY_PRIMARY_FACTOR = 2.75;
   var BOILER_EFF = 0.9;
   var HEAT_PUMP_COP_HEAT = 4;
@@ -1563,6 +1613,18 @@
   function getPrimaryEnergyRequired() {
     var area = parseFloat(inputs.areaM2, 10);
     if (!Number.isFinite(area) || area < 0) return null;
+    /* 지역난방 미선택 시에는 전 연면적에 120 적용 */
+    if (!inputs.checkDistrictHeating) return area * UNIT_ENERGY_KWH_PER_M2_YR;
+    var c = getGeothermalAndNonSupplyCounts();
+    var safety = parseFloat(inputs.primaryEnergySafetyFactor, 10);
+    if (!Number.isFinite(safety) || safety <= 0) safety = 1;
+    /* 비공급 구역(지역난방): 120×0.375 + 120×0.625×(0.728/1.1)×안전율 */
+    var unitDistrictHeating = UNIT_ENERGY_KWH_PER_M2_YR * ELECTRICITY_SHARE + UNIT_ENERGY_KWH_PER_M2_YR * GAS_SHARE * (DISTRICT_HEATING_PRIMARY_FACTOR / GAS_PRIMARY_FACTOR) * safety;
+    if (c.total > 0 && (c.geoHouseholds > 0 || c.nonGeo > 0)) {
+      var geoArea = area * (c.geoHouseholds / c.total);
+      var nonSupplyArea = area * (c.nonGeo / c.total);
+      return geoArea * UNIT_ENERGY_KWH_PER_M2_YR + nonSupplyArea * unitDistrictHeating;
+    }
     return area * UNIT_ENERGY_KWH_PER_M2_YR;
   }
 
@@ -1583,38 +1645,44 @@
   function updateGeothermalHouseholds() {
     var geoEl = document.getElementById("geothermalHouseholds");
     var nonEl = document.getElementById("nonGeothermalHouseholds");
+    var districtEl = document.getElementById("districtHeatingHouseholds");
     if (!geoEl || !nonEl) return;
+    var c = getGeothermalAndNonSupplyCounts();
+    var geoKw = parseFloat(inputs.geothermalCapacityKw, 10) || 0;
+    var avgArea = parseFloat(inputs.avgDedicatedAreaM2, 10);
+    var hasGeo = Number.isFinite(geoKw) && geoKw > 0 && Number.isFinite(avgArea) && avgArea > 0;
+    var districtHeating = !!inputs.checkDistrictHeating;
+    var hasCount = c.total > 0 || c.geoHouseholds > 0;
+
+    geoEl.textContent = "지열세대: " + (hasGeo ? c.geoHouseholds : "—");
+    if (districtEl) {
+      districtEl.style.display = "";
+      districtEl.textContent = "지역난방세대: " + (districtHeating && hasCount ? c.nonGeo : (hasCount ? 0 : "—"));
+    }
+    nonEl.textContent = "개별난방세대: " + (!districtHeating && hasCount ? c.nonGeo : (hasCount ? 0 : "—"));
+  }
+
+  /** 지열 공급 세대수·비공급 세대수·총 세대수. 비공급 = 지역난방 적용 구역. */
+  function getGeothermalAndNonSupplyCounts() {
     var geoKw = parseFloat(inputs.geothermalCapacityKw, 10) || 0;
     var avgArea = parseFloat(inputs.avgDedicatedAreaM2, 10);
     var totalHouseholds = parseFloat(inputs.householdCount, 10) || 0;
     var total = Number.isFinite(totalHouseholds) && totalHouseholds >= 0 ? Math.floor(totalHouseholds) : 0;
-
     var geoHouseholds = 0;
-    if (Number.isFinite(geoKw) && geoKw > 0 && Number.isFinite(avgArea) && avgArea > 0) {
+    if (total > 0 && Number.isFinite(geoKw) && geoKw > 0 && Number.isFinite(avgArea) && avgArea > 0) {
       var geoUSRT = geoKw / KW_PER_USRT;
       geoHouseholds = Math.floor(geoUSRT * REF_AREA_M2_PER_HOUSEHOLD / (USRT_PER_HOUSEHOLD_REF * avgArea));
       if (!Number.isFinite(geoHouseholds) || geoHouseholds < 0) geoHouseholds = 0;
     }
     var nonGeo = Math.max(0, total - geoHouseholds);
-
-    geoEl.textContent = "지열세대: " + (Number.isFinite(geoKw) && geoKw > 0 && Number.isFinite(avgArea) && avgArea > 0 ? geoHouseholds : "—");
-    nonEl.textContent = "비 지열세대: " + (total > 0 || geoHouseholds > 0 ? nonGeo : "—");
+    return { geoHouseholds: geoHouseholds, nonGeo: nonGeo, total: total };
   }
 
   /** 지열세대/총세대 비율. 절감요금에 곱할 때 사용. 총세대 0이면 null. */
   function getGeothermalHouseholdRatio() {
-    var geoKw = parseFloat(inputs.geothermalCapacityKw, 10) || 0;
-    var avgArea = parseFloat(inputs.avgDedicatedAreaM2, 10);
-    var totalHouseholds = parseFloat(inputs.householdCount, 10) || 0;
-    var total = Number.isFinite(totalHouseholds) && totalHouseholds >= 0 ? Math.floor(totalHouseholds) : 0;
-    if (total <= 0) return null;
-    var geoHouseholds = 0;
-    if (Number.isFinite(geoKw) && geoKw > 0 && Number.isFinite(avgArea) && avgArea > 0) {
-      var geoUSRT = geoKw / KW_PER_USRT;
-      geoHouseholds = Math.floor(geoUSRT * REF_AREA_M2_PER_HOUSEHOLD / (USRT_PER_HOUSEHOLD_REF * avgArea));
-      if (!Number.isFinite(geoHouseholds) || geoHouseholds < 0) geoHouseholds = 0;
-    }
-    return geoHouseholds / total;
+    var c = getGeothermalAndNonSupplyCounts();
+    if (c.total <= 0) return null;
+    return c.geoHouseholds / c.total;
   }
 
   var M2_PER_PYEONG = 3.3058;
@@ -1796,8 +1864,9 @@
     return r;
   }
 
-  /** 최적화용: 주어진 지열·PV 용량으로 시나리오 지표 계산 (inputs 일시 변경 후 복원) */
-  function getScenarioMetrics(geoKw, pvKwp, bapvKwp, bipvKwp) {
+  /** 최적화용: 주어진 지열·PV 용량으로 시나리오 지표 계산 (inputs 일시 변경 후 복원).
+   *  optRequired: 최적화 시 사용한 1차에너지 소요량(kWh). 넘기면 자립률을 production/optRequired*100으로 계산(지역난방 시 분모 일치). */
+  function getScenarioMetrics(geoKw, pvKwp, bapvKwp, bipvKwp, optRequired) {
     if (bapvKwp == null || !Number.isFinite(bapvKwp)) bapvKwp = 0;
     if (bipvKwp == null || !Number.isFinite(bipvKwp)) bipvKwp = 0;
     var savedGeo = inputs.geothermalCapacityKw;
@@ -1814,7 +1883,11 @@
     if (taxSave == null || !Number.isFinite(taxSave)) taxSave = 0;
     var annualSave = getTotalEnergyCostSaveAmount();
     if (annualSave == null || !Number.isFinite(annualSave)) annualSave = 0;
+    var prod = calcPrimaryEnergyProduction();
     var rate = getSelfSufficiencyRate();
+    if (optRequired != null && Number.isFinite(optRequired) && optRequired > 0 && prod != null && Number.isFinite(prod)) {
+      rate = (prod / optRequired) * 100;
+    }
     var proj = getProjectionDataFromParams(investment, taxSave, annualSave);
     var npv = calcNPV(proj.cashFlows, DISCOUNT_RATE);
     var irr = calcIRR(proj.cashFlows);
@@ -1856,6 +1929,8 @@
       if (resultEl) resultEl.innerHTML = "<p class=\"optimizer-result-error\">자립률 목표를 0~100 사이 숫자로 입력해 주세요.</p>";
       return;
     }
+    /* 히스테리시스: 사용자가 입력한 자립률보다 0.1% 높은 값을 내부 목표로 사용 */
+    var internalTargetVal = targetVal + 0.1;
     var areaVal = parseFloat(document.getElementById("optimizerAreaM2").value, 10);
     if (!Number.isFinite(areaVal) || areaVal <= 0) {
       if (resultEl) resultEl.innerHTML = "<p class=\"optimizer-result-error\">연면적을 입력해 주세요.</p>";
@@ -1870,6 +1945,8 @@
     if (geoOptCheck) inputs.geothermalOptimize = geoOptCheck.checked;
     var geoOptTab2 = document.getElementById("geothermalOptimize");
     if (geoOptTab2) geoOptTab2.checked = !!inputs.geothermalOptimize;
+    var districtOptCheck = document.getElementById("optimizerCheckDistrictHeating");
+    if (districtOptCheck) inputs.checkDistrictHeating = districtOptCheck.checked;
 
     var householdVal = document.getElementById("optimizerHouseholdCount").value;
     var householdNum = householdVal === "" ? 0 : parseFloat(householdVal, 10);
@@ -1887,48 +1964,80 @@
       if (resultEl) resultEl.innerHTML = "<p class=\"optimizer-result-error\">연면적을 확인해 주세요.</p>";
       return;
     }
-    var targetProduction = (targetVal / 100) * required;
     var maxPv = getMaxPvKwpFromRoof(roofVal);
     var maxGeo = getMaxGeoKwFromSite(siteVal);
+    var mode = inputs.optimizerMode;
+    var districtHeating = !!inputs.checkDistrictHeating;
 
     var geo = 0;
     var pv = 0;
     var bapv = 0;
     var bipv = 0;
-    var mode = inputs.optimizerMode;
-    var remaining = targetProduction;
+    var maxIter = 20;
+    var iter = 0;
 
-    if (mode === "investment") {
-      pv = Math.min(maxPv, remaining / 2000);
-      if (!Number.isFinite(pv) || pv < 0) pv = 0;
-      remaining -= pv * 2000;
-      geo = Math.min(maxGeo, remaining / 638);
-      if (!Number.isFinite(geo) || geo < 0) geo = 0;
-      remaining -= geo * 638;
-      if (remaining > 0) {
-        bapv = remaining / 1111;
-        if (!Number.isFinite(bapv) || bapv < 0) bapv = 0;
-        remaining -= bapv * 1111;
-        if (remaining > 0) bipv = remaining / 1111;
+    /* 지역난방 선택 시: 지열 설치량에 따라 1차에너지 소요량(required)이 바뀌므로,
+       목표 자립률을 만족할 때까지 required 갱신하며 반복 계산 */
+    for (;;) {
+      inputs.geothermalCapacityKw = geo;
+      required = getPrimaryEnergyRequired();
+      if (required == null || !Number.isFinite(required) || required <= 0) break;
+      var targetProduction = (internalTargetVal / 100) * required;
+      var remaining = targetProduction;
+
+      if (mode === "investment") {
+        pv = Math.min(maxPv, remaining / 2000);
+        if (!Number.isFinite(pv) || pv < 0) pv = 0;
+        remaining -= pv * 2000;
+        geo = Math.min(maxGeo, remaining / 638);
+        if (!Number.isFinite(geo) || geo < 0) geo = 0;
+        remaining -= geo * 638;
+        if (remaining > 0) {
+          bapv = remaining / 1111;
+          if (!Number.isFinite(bapv) || bapv < 0) bapv = 0;
+          remaining -= bapv * 1111;
+          if (remaining > 0) bipv = remaining / 1111;
+        }
+      } else {
+        geo = Math.min(maxGeo, remaining / 638);
+        if (!Number.isFinite(geo) || geo < 0) geo = 0;
+        remaining -= geo * 638;
+        pv = Math.min(maxPv, remaining / 2000);
+        if (!Number.isFinite(pv) || pv < 0) pv = 0;
+        remaining -= pv * 2000;
+        if (remaining > 0) {
+          bapv = remaining / 1111;
+          if (!Number.isFinite(bapv) || bapv < 0) bapv = 0;
+          remaining -= bapv * 1111;
+          if (remaining > 0) bipv = remaining / 1111;
+        }
       }
-    } else {
-      geo = Math.min(maxGeo, remaining / 638);
-      if (!Number.isFinite(geo) || geo < 0) geo = 0;
-      remaining -= geo * 638;
-      pv = Math.min(maxPv, remaining / 2000);
-      if (!Number.isFinite(pv) || pv < 0) pv = 0;
-      remaining -= pv * 2000;
-      if (remaining > 0) {
-        bapv = remaining / 1111;
-        if (!Number.isFinite(bapv) || bapv < 0) bapv = 0;
-        remaining -= bapv * 1111;
-        if (remaining > 0) bipv = remaining / 1111;
+
+      var actualProduction = geo * 638 + pv * 2000 + bapv * 1111 + bipv * 1111;
+      var shortfall = targetProduction - actualProduction;
+      if (shortfall > 1e-6) {
+        if (bipv > 0) bipv += shortfall / 1111;
+        else if (bapv > 0) bapv += shortfall / 1111;
+        else if (geo > 0) geo += shortfall / 638;
+        else if (pv > 0) pv += shortfall / 2000;
       }
+      actualProduction = geo * 638 + pv * 2000 + bapv * 1111 + bipv * 1111;
+
+      if (!districtHeating) break;
+      inputs.geothermalCapacityKw = geo;
+      var requiredAfter = getPrimaryEnergyRequired();
+      if (requiredAfter == null || !Number.isFinite(requiredAfter) || requiredAfter <= 0) break;
+      var rateAfter = (actualProduction / requiredAfter) * 100;
+      if (rateAfter >= internalTargetVal - 0.01 || iter >= maxIter - 1) {
+        required = requiredAfter;
+        break;
+      }
+      iter++;
     }
 
-    var m = getScenarioMetrics(geo, pv, bapv, bipv);
+    var m = getScenarioMetrics(geo, pv, bapv, bipv, required);
     var rate = m.selfSufficiencyRate;
-    if (rate == null || !Number.isFinite(rate) || rate < targetVal - 0.5) {
+    if (rate == null || !Number.isFinite(rate) || rate < internalTargetVal - 0.5) {
       if (resultEl) resultEl.innerHTML = "<p class=\"optimizer-result-error\">자립률 " + targetVal + "%를 만족하는 조합을 찾지 못했습니다. 옥상면적·부지면적을 늘리거나 목표를 낮춰 주세요.</p>";
       return;
     }
@@ -1992,6 +2101,12 @@
         if (geoOptCheck) inputs.geothermalOptimize = geoOptCheck.checked;
         var geoOptTab2 = document.getElementById("geothermalOptimize");
         if (geoOptTab2) geoOptTab2.checked = !!inputs.geothermalOptimize;
+        var districtOptCheck = document.getElementById("optimizerCheckDistrictHeating");
+        if (districtOptCheck) {
+          inputs.checkDistrictHeating = districtOptCheck.checked;
+          var checkDistrictEl = document.getElementById("checkDistrictHeating");
+          if (checkDistrictEl) checkDistrictEl.checked = !!inputs.checkDistrictHeating;
+        }
         refreshAll();
       });
     }
