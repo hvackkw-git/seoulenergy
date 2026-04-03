@@ -1540,3 +1540,212 @@ input:focus {
   .report-frame { flex-direction: column; }
   .economics-cols { flex-direction: column; }
 }
+/* ==================== AQUARIUM / SHRIMP GAME ==================== */
+
+.aquarium-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.aquarium-hud {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  max-width: 640px;
+  flex-wrap: wrap;
+}
+
+.aquarium-level-badge {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-1);
+  white-space: nowrap;
+  text-shadow: 0 0 10px var(--color-1);
+}
+
+.aquarium-exp-area {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 4px;
+  min-width: 120px;
+}
+
+.aquarium-exp-text {
+  font-size: 0.78rem;
+  color: var(--text-soft);
+}
+
+.aquarium-exp-bar-bg {
+  height: 8px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.aquarium-exp-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--color-1), var(--color-3));
+  border-radius: 4px;
+  transition: width 0.4s ease;
+  box-shadow: 0 0 8px var(--color-1);
+}
+
+.aquarium-detail-btn {
+  padding: 5px 14px;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  color: var(--text-soft);
+  font-size: 0.82rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.aquarium-detail-btn:hover {
+  background: rgba(0,242,255,0.12);
+  color: var(--color-1);
+  border-color: var(--color-1);
+}
+
+.aquarium-canvas {
+  width: 100%;
+  max-width: 640px;
+  border-radius: 14px;
+  border: 1px solid rgba(0,190,255,0.25);
+  box-shadow: 0 0 20px rgba(0,100,200,0.3), inset 0 0 30px rgba(0,0,100,0.3);
+  cursor: crosshair;
+  display: block;
+}
+
+.aquarium-hint {
+  font-size: 0.78rem;
+  color: var(--text-soft);
+  margin: 0;
+  text-align: center;
+}
+
+/* Status Modal */
+.aquarium-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.aquarium-modal-box {
+  background: rgba(10, 18, 35, 0.97);
+  border: 1px solid rgba(0,242,255,0.3);
+  border-radius: 18px;
+  padding: 28px 32px 24px;
+  min-width: 300px;
+  max-width: 420px;
+  width: 90%;
+  box-shadow: 0 0 40px rgba(0,100,255,0.25);
+  position: relative;
+}
+
+.aquarium-modal-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-1);
+  margin-bottom: 16px;
+  text-shadow: 0 0 10px var(--color-1);
+}
+
+.aquarium-modal-close {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  background: none;
+  border: none;
+  color: var(--text-soft);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: color 0.2s;
+}
+
+.aquarium-modal-close:hover {
+  color: var(--color-4);
+}
+
+.aq-modal-stat-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.aq-modal-label {
+  font-size: 0.82rem;
+  color: var(--text-soft);
+  min-width: 52px;
+}
+
+.aq-modal-val {
+  font-size: 0.9rem;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.aq-modal-section-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-3);
+  margin: 14px 0 8px;
+  letter-spacing: 0.02em;
+}
+
+.aq-modal-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.aq-modal-td {
+  padding: 6px 8px;
+  font-size: 0.83rem;
+  color: var(--text);
+  vertical-align: middle;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.aq-affinity-bar-wrap {
+  width: 100px;
+  height: 8px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.aq-affinity-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #ff88cc, #ff00c8);
+  border-radius: 4px;
+  box-shadow: 0 0 6px #ff88cc;
+  transition: width 0.3s ease;
+}
+
+.aq-affinity-val {
+  color: #ff88cc;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .aquarium-hud { gap: 8px; }
+  .aquarium-canvas { border-radius: 10px; }
+}
