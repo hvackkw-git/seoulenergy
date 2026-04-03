@@ -2824,7 +2824,7 @@
 
   var AQUARIUM_SAVE_KEY = "seoulEnergy_aquarium_v1";
   var AQUARIUM_EXP_THRESHOLDS = [0, 10, 30, 60, 100, 150, 220, 300, 400, 520];
-  var AQUARIUM_EMOTIONS = ['FOOD', 'NICE', 'HAPPY', '\u2665', 'HI~', '...zzZ'];
+  var AQUARIUM_EMOTIONS = ['FOOD', 'NICE', 'HAPPY', '♡', 'HI~', '...zzZ'];
   var AQUARIUM_SHRIMP_COUNT = 3;
   var AQUARIUM_GRAVITY = 980;
   var AQUARIUM_JUMP_VY = -460;
@@ -2841,7 +2841,8 @@
     canvas: null,
     ctx: null,
     initialized: false,
-    _savedAffinities: []
+    _savedAffinities: [],
+    _clickListenerAdded: false
   };
 
   function aqLoadState() {
@@ -2925,7 +2926,7 @@
       groundY: groundY,
       animTick: Math.random() * 10,
       index: index,
-      name: ['\uc0c8\uc6b01', '\uc0c8\uc6b02', '\uc0c8\uc6b03'][index] || ('\uc0c8\uc6b0' + (index + 1)),
+      name: ['새우1', '새우2', '새우3'][index] || ('새우' + (index + 1)),
       pendingEmotion: false
     };
   }
@@ -3260,9 +3261,9 @@
           '</tr>';
       }).join('');
       content.innerHTML =
-        '<div class="aq-modal-stat-row"><span class="aq-modal-label">\ub808\ubca8</span><span class="aq-modal-val">Lv. ' + aq.level + '</span></div>' +
-        '<div class="aq-modal-stat-row"><span class="aq-modal-label">\uacbd\ud5d8\uce58</span><span class="aq-modal-val">' + expStr + '</span></div>' +
-        '<div class="aq-modal-section-title">\uc0c8\uc6b0 \uce5c\ubc00\ub3c4</div>' +
+        '<div class="aq-modal-stat-row"><span class="aq-modal-label">레벨</span><span class="aq-modal-val">Lv. ' + aq.level + '</span></div>' +
+        '<div class="aq-modal-stat-row"><span class="aq-modal-label">경험치</span><span class="aq-modal-val">' + expStr + '</span></div>' +
+        '<div class="aq-modal-section-title">새우 친밀도</div>' +
         '<table class="aq-modal-table"><tbody>' + shrimpRows + '</tbody></table>';
     }
     modal.style.display = 'flex';
