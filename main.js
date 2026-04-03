@@ -278,6 +278,7 @@
             <button type="button" class="tab-btn ${currentTab === 4 ? "is-active" : ""}" data-tab="4">최적값찾기</button>
             <button type="button" class="tab-btn ${currentTab === 5 ? "is-active" : ""}" data-tab="5">최종보고서</button>
             <button type="button" class="tab-btn ${currentTab === 6 ? "is-active" : ""}" data-tab="6">간이계산기</button>
+            <button type="button" class="tab-btn ${currentTab === 7 ? "is-active" : ""}" data-tab="7">수조</button>
           </div>
           <div class="save-slot-frame">
             <div class="developer-slot-buttons" aria-label="개발자 프리셋">
@@ -864,6 +865,31 @@
             </div>
           </div>
         </div>
+
+        <div id="tabPanel7" class="tab-panel ${currentTab === 7 ? "is-active" : ""}">
+          <div class="aquarium-container">
+            <div class="aquarium-hud">
+              <div class="aquarium-level-badge">🦐 Lv.<span id="aquariumLevel">1</span></div>
+              <div class="aquarium-exp-area">
+                <span class="aquarium-exp-text">EXP <span id="aquariumExpVal">0</span></span>
+                <div class="aquarium-exp-bar-bg">
+                  <div class="aquarium-exp-bar-fill" id="aquariumExpBarFill"></div>
+                </div>
+              </div>
+              <button class="aquarium-detail-btn" id="aquariumDetailBtn">상세</button>
+            </div>
+            <canvas id="aquariumCanvas" class="aquarium-canvas" width="640" height="300"></canvas>
+            <p class="aquarium-hint">수조를 탭하면 경험치 획득 &middot; 새우 클릭으로 친밀도 상승</p>
+          </div>
+        </div>
+
+        <div id="aquariumStatusModal" class="aquarium-modal-overlay" style="display:none">
+          <div class="aquarium-modal-box">
+            <div class="aquarium-modal-title">🦐 수조 상세 정보</div>
+            <button class="aquarium-modal-close" id="aquariumModalClose">✕</button>
+            <div id="aquariumStatusContent"></div>
+          </div>
+        </div>
       </div>
     `;
 
@@ -888,6 +914,7 @@
           if (oDistrict) oDistrict.checked = !!inputs.checkDistrictHeating;
         }
         if (tab === 5) updateFinalReport();
+        if (tab === 7) { aqStart(); } else { aqStop(); }
       });
     });
 
@@ -2793,5 +2820,469 @@
     // 등급은 자립률 기반으로 취득세 계산에만 사용 (화면 배지 제거됨)
   }
 
+  // ==================== AQUARIUM / SHRIMP GAME ====================
+
+  var AQUARIUM_SAVE_KEY = "seoulEnergy_aquarium_v1";
+  var AQUARIUM_EXP_THRESHOLDS = [0, 10, 30, 60, 100, 150, 220, 300, 400, 520];
+  var AQUARIUM_EMOTIONS = ['FOOD', 'NICE', 'HAPPY', '♡', 'HI~', '...zzZ'];
+  var AQUARIUM_SHRIMP_COUNT = 3;
+  var AQUARIUM_GRAVITY = 980;
+  var AQUARIUM_JUMP_VY = -460;
+  var AQUARIUM_WALK_SPEED = 45;
+  var AQUARIUM_RUN_SPEED = 100;
+
+  var aq = {
+    exp: 0,
+    level: 1,
+    shrimp: [],
+    raf: null,
+    lastTime: 0,
+    toasts: [],
+    canvas: null,
+    ctx: null,
+    initialized: false,
+    _savedAffinities: [],
+    _clickListenerAdded: false
+  };
+
+  function aqLoadState() {
+    try {
+      var raw = localStorage.getItem(AQUARIUM_SAVE_KEY);
+      if (!raw) return;
+      var data = JSON.parse(raw);
+      aq.exp = typeof data.exp === 'number' ? data.exp : 0;
+      aq.level = typeof data.level === 'number' ? data.level : 1;
+      aq._savedAffinities = Array.isArray(data.affinities) ? data.affinities : [];
+    } catch (e) {}
+  }
+
+  function aqSaveState() {
+    try {
+      var data = {
+        exp: aq.exp,
+        level: aq.level,
+        affinities: aq.shrimp.map(function (s) { return s.affinity; })
+      };
+      localStorage.setItem(AQUARIUM_SAVE_KEY, JSON.stringify(data));
+    } catch (e) {}
+  }
+
+  function aqGetLevelExp(lv) {
+    return AQUARIUM_EXP_THRESHOLDS[Math.max(0, Math.min(lv - 1, AQUARIUM_EXP_THRESHOLDS.length - 1))];
+  }
+
+  function aqGetNextLevelExp(lv) {
+    if (lv >= AQUARIUM_EXP_THRESHOLDS.length) return null;
+    return AQUARIUM_EXP_THRESHOLDS[lv];
+  }
+
+  function aqAddExp(amount) {
+    aq.exp += amount;
+    var maxLv = AQUARIUM_EXP_THRESHOLDS.length;
+    while (aq.level < maxLv) {
+      var next = AQUARIUM_EXP_THRESHOLDS[aq.level];
+      if (next == null || aq.exp < next) break;
+      aq.level++;
+    }
+    aqUpdateHUD();
+    aqSaveState();
+  }
+
+  function aqUpdateHUD() {
+    var lvEl = document.getElementById('aquariumLevel');
+    if (lvEl) lvEl.textContent = aq.level;
+    var expEl = document.getElementById('aquariumExpVal');
+    var barEl = document.getElementById('aquariumExpBarFill');
+    var curExp = aqGetLevelExp(aq.level);
+    var nextExp = aqGetNextLevelExp(aq.level);
+    if (nextExp != null) {
+      var pct = (aq.exp - curExp) / (nextExp - curExp);
+      pct = Math.max(0, Math.min(1, pct)) * 100;
+      if (expEl) expEl.textContent = aq.exp + ' / ' + nextExp;
+      if (barEl) barEl.style.width = pct.toFixed(1) + '%';
+    } else {
+      if (expEl) expEl.textContent = aq.exp + ' (MAX)';
+      if (barEl) barEl.style.width = '100%';
+    }
+  }
+
+  function aqCreateShrimp(canvas, index) {
+    var groundY = canvas.height - 22;
+    var total = AQUARIUM_SHRIMP_COUNT > 1 ? AQUARIUM_SHRIMP_COUNT - 1 : 1;
+    var startX = 80 + (canvas.width - 160) * (index / total);
+    var dir = index % 2 === 0 ? 1 : -1;
+    return {
+      x: startX,
+      y: groundY,
+      vx: dir * AQUARIUM_WALK_SPEED,
+      vy: 0,
+      state: 'WALK',
+      facing: dir,
+      stateTimer: 0,
+      stateChangeTimer: 2000 + Math.random() * 4000,
+      emotion: null,
+      emotionTimer: 0,
+      affinity: 0,
+      groundY: groundY,
+      animTick: Math.random() * 10,
+      index: index,
+      name: ['새우1', '새우2', '새우3'][index] || ('새우' + (index + 1)),
+      pendingEmotion: false
+    };
+  }
+
+  function aqInit() {
+    aqLoadState();
+    var canvas = document.getElementById('aquariumCanvas');
+    if (!canvas) return;
+    aq.canvas = canvas;
+    aq.ctx = canvas.getContext('2d');
+    aq.shrimp = [];
+    for (var i = 0; i < AQUARIUM_SHRIMP_COUNT; i++) {
+      var s = aqCreateShrimp(canvas, i);
+      if (aq._savedAffinities[i] != null) {
+        s.affinity = Math.max(0, Math.min(100, aq._savedAffinities[i]));
+      }
+      aq.shrimp.push(s);
+    }
+    aq.toasts = [];
+    if (!aq._clickListenerAdded) {
+      canvas.addEventListener('click', aqOnClick);
+      aq._clickListenerAdded = true;
+    }
+    aq.initialized = true;
+    aqUpdateHUD();
+  }
+
+  function aqStart() {
+    if (!aq.initialized) aqInit();
+    if (aq.raf) return;
+    aq.lastTime = 0;
+    aq.raf = requestAnimationFrame(aqLoop);
+  }
+
+  function aqStop() {
+    if (aq.raf) {
+      cancelAnimationFrame(aq.raf);
+      aq.raf = null;
+    }
+  }
+
+  function aqOnClick(e) {
+    var canvas = aq.canvas;
+    if (!canvas) return;
+    var rect = canvas.getBoundingClientRect();
+    var scaleX = canvas.width / rect.width;
+    var scaleY = canvas.height / rect.height;
+    var mx = (e.clientX - rect.left) * scaleX;
+    var my = (e.clientY - rect.top) * scaleY;
+    var hit = null;
+    for (var i = 0; i < aq.shrimp.length; i++) {
+      var s = aq.shrimp[i];
+      if (Math.abs(mx - s.x) < 28 && Math.abs(my - s.y) < 28) {
+        hit = s;
+        break;
+      }
+    }
+    if (hit) {
+      aqShrimpInteract(hit);
+    } else {
+      aqAddExp(1);
+      aqShowToast('+EXP!', '#00f2ff', mx, my - 20);
+    }
+  }
+
+  function aqShrimpInteract(s) {
+    if (s.state === 'JUMP') {
+      s.vy = 0;
+      s.vx = 0;
+      s.state = 'FALLING';
+      s.pendingEmotion = true;
+    } else if (s.state === 'FALLING') {
+      // already falling
+    } else {
+      s.state = 'STOPPED';
+      s.stateTimer = 2000;
+      s.vx = 0;
+      s.vy = 0;
+      aqShowEmotion(s);
+      if (s.affinity < 100) {
+        s.affinity = Math.min(100, s.affinity + 1);
+        aqSaveState();
+      }
+    }
+  }
+
+  function aqShowEmotion(s) {
+    var emotion = AQUARIUM_EMOTIONS[Math.floor(Math.random() * AQUARIUM_EMOTIONS.length)];
+    s.emotion = emotion;
+    s.emotionTimer = 2000;
+    aqShowToast(emotion, '#ff88cc', s.x, s.y - 40);
+  }
+
+  function aqShowToast(text, color, x, y) {
+    aq.toasts.push({ text: text, color: color, x: x, y: y, vy: -35, opacity: 1.0, life: 1500 });
+  }
+
+  function aqLoop(timestamp) {
+    if (!aq.raf) return;
+    if (aq.lastTime === 0) aq.lastTime = timestamp;
+    var dt = Math.min(timestamp - aq.lastTime, 50);
+    aq.lastTime = timestamp;
+    aqUpdateShrimp(dt);
+    aqUpdateToasts(dt);
+    aqDraw();
+    aq.raf = requestAnimationFrame(aqLoop);
+  }
+
+  function aqUpdateShrimp(dt) {
+    var canvas = aq.canvas;
+    if (!canvas) return;
+    var dtS = dt / 1000;
+    var W = canvas.width;
+    aq.shrimp.forEach(function (s) {
+      s.animTick += dtS * 6;
+      if (s.state === 'WALK') {
+        s.x += s.vx * dtS;
+        if (s.x < 22) { s.x = 22; s.vx = Math.abs(s.vx); s.facing = 1; }
+        if (s.x > W - 22) { s.x = W - 22; s.vx = -Math.abs(s.vx); s.facing = -1; }
+        s.facing = s.vx >= 0 ? 1 : -1;
+        s.stateChangeTimer -= dt;
+        if (s.stateChangeTimer <= 0) {
+          var r = Math.random();
+          if (r < 0.35) {
+            s.state = 'RUN';
+            s.vx = s.facing * AQUARIUM_RUN_SPEED;
+            s.stateChangeTimer = 1000 + Math.random() * 2000;
+          } else if (r < 0.55) {
+            s.state = 'JUMP';
+            s.vy = AQUARIUM_JUMP_VY;
+            s.vx = s.facing * (AQUARIUM_WALK_SPEED + Math.random() * 20);
+          } else {
+            s.vx = -s.vx;
+            s.facing = -s.facing;
+            s.stateChangeTimer = 2000 + Math.random() * 5000;
+          }
+        }
+      } else if (s.state === 'RUN') {
+        s.x += s.vx * dtS;
+        if (s.x < 22) { s.x = 22; s.vx = Math.abs(s.vx); s.facing = 1; }
+        if (s.x > W - 22) { s.x = W - 22; s.vx = -Math.abs(s.vx); s.facing = -1; }
+        s.facing = s.vx >= 0 ? 1 : -1;
+        s.stateChangeTimer -= dt;
+        if (s.stateChangeTimer <= 0) {
+          s.state = 'WALK';
+          s.vx = s.facing * AQUARIUM_WALK_SPEED;
+          s.stateChangeTimer = 2000 + Math.random() * 4000;
+        }
+      } else if (s.state === 'JUMP') {
+        s.vy += AQUARIUM_GRAVITY * dtS;
+        s.y += s.vy * dtS;
+        s.x += s.vx * dtS;
+        if (s.x < 22) { s.x = 22; s.vx = Math.abs(s.vx); s.facing = 1; }
+        if (s.x > W - 22) { s.x = W - 22; s.vx = -Math.abs(s.vx); s.facing = -1; }
+        if (s.y >= s.groundY) {
+          s.y = s.groundY;
+          s.vy = 0;
+          s.state = 'WALK';
+          s.vx = s.facing * AQUARIUM_WALK_SPEED;
+          s.stateChangeTimer = 2000 + Math.random() * 4000;
+        }
+      } else if (s.state === 'FALLING') {
+        s.vy += AQUARIUM_GRAVITY * dtS;
+        s.y += s.vy * dtS;
+        if (s.y >= s.groundY) {
+          s.y = s.groundY;
+          s.vy = 0;
+          if (s.pendingEmotion) {
+            s.pendingEmotion = false;
+            s.state = 'STOPPED';
+            s.stateTimer = 2000;
+            aqShowEmotion(s);
+            if (s.affinity < 100) {
+              s.affinity = Math.min(100, s.affinity + 1);
+              aqSaveState();
+            }
+          } else {
+            s.state = 'WALK';
+            s.vx = s.facing * AQUARIUM_WALK_SPEED;
+            s.stateChangeTimer = 2000 + Math.random() * 4000;
+          }
+        }
+      } else if (s.state === 'STOPPED') {
+        s.stateTimer -= dt;
+        if (s.stateTimer <= 0) {
+          s.state = 'WALK';
+          s.vx = s.facing * AQUARIUM_WALK_SPEED;
+          s.stateChangeTimer = 2000 + Math.random() * 4000;
+        }
+      }
+      if (s.emotionTimer > 0) {
+        s.emotionTimer -= dt;
+        if (s.emotionTimer <= 0) {
+          s.emotionTimer = 0;
+          s.emotion = null;
+        }
+      }
+    });
+  }
+
+  function aqUpdateToasts(dt) {
+    var dtS = dt / 1000;
+    aq.toasts = aq.toasts.filter(function (t) {
+      t.life -= dt;
+      t.y += t.vy * dtS;
+      t.opacity = Math.max(0, t.life / 1500);
+      return t.life > 0;
+    });
+  }
+
+  function aqDraw() {
+    var canvas = aq.canvas;
+    var ctx = aq.ctx;
+    if (!canvas || !ctx) return;
+    var W = canvas.width;
+    var H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+    var bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, '#001428');
+    bg.addColorStop(1, '#002040');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+    var t = Date.now() * 0.0006;
+    ctx.strokeStyle = 'rgba(0,190,255,0.06)';
+    ctx.lineWidth = 1;
+    for (var i = 0; i < 6; i++) {
+      var shimY = ((t * 30 + i * 55) % H + H) % H;
+      ctx.beginPath();
+      ctx.moveTo(0, shimY);
+      ctx.lineTo(W, shimY);
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#3a2618';
+    ctx.fillRect(0, H - 20, W, 20);
+    ctx.fillStyle = 'rgba(90,65,40,0.4)';
+    for (var si = 0; si < 8; si++) {
+      ctx.beginPath();
+      ctx.ellipse(40 + si * (W - 80) / 7, H - 12, 12, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    aqDrawDecor(ctx, W, H);
+    aq.shrimp.forEach(function (s) { aqDrawShrimp(ctx, s); });
+    aq.toasts.forEach(function (t) {
+      ctx.save();
+      ctx.globalAlpha = t.opacity;
+      ctx.font = 'bold 15px sans-serif';
+      ctx.fillStyle = t.color;
+      ctx.shadowColor = 'rgba(0,0,0,0.9)';
+      ctx.shadowBlur = 5;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(t.text, t.x, t.y);
+      ctx.restore();
+    });
+  }
+
+  function aqDrawDecor(ctx, W, H) {
+    var tw = Date.now() * 0.002;
+    [[W * 0.07, 80], [W * 0.15, 70], [W * 0.85, 80], [W * 0.93, 70]].forEach(function (sw) {
+      var sx = sw[0];
+      var swH = sw[1];
+      var wave = Math.sin(tw + sx * 0.05) * 6;
+      ctx.strokeStyle = 'rgba(20,180,80,0.5)';
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(sx, H - 20);
+      ctx.quadraticCurveTo(sx + wave, H - 20 - swH * 0.5, sx + wave * 0.5, H - 20 - swH);
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(30,200,90,0.4)';
+      ctx.beginPath();
+      ctx.ellipse(sx + wave * 0.5 + 6, H - 20 - swH, 8, 4, -0.5, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.fillStyle = 'rgba(110,80,50,0.55)';
+    [W * 0.3, W * 0.5, W * 0.7].forEach(function (px) {
+      ctx.beginPath();
+      ctx.ellipse(px, H - 13, 10, 5, 0, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+
+  function aqDrawShrimp(ctx, s) {
+    var bob = (s.state === 'WALK' || s.state === 'RUN') ? Math.sin(s.animTick * 2) * 2 : 0;
+    var rotAngle = 0;
+    if (s.state === 'JUMP') rotAngle = -0.3;
+    else if (s.state === 'FALLING') rotAngle = 0.4;
+    ctx.save();
+    ctx.translate(s.x, s.y + bob);
+    if (s.facing < 0) ctx.scale(-1, 1);
+    ctx.rotate(rotAngle);
+    if (s.state === 'STOPPED') {
+      ctx.shadowColor = '#ff88cc';
+      ctx.shadowBlur = 18;
+    } else if (s.state === 'JUMP' || s.state === 'FALLING') {
+      ctx.shadowColor = '#00f2ff';
+      ctx.shadowBlur = 12;
+    }
+    var sz = s.state === 'RUN' ? 30 : 28;
+    ctx.font = sz + 'px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('\uD83E\uDD90', 0, 0);
+    ctx.restore();
+    if (s.emotion && s.emotionTimer > 0) {
+      var alpha = Math.min(1.0, s.emotionTimer / 400);
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.font = 'bold 14px sans-serif';
+      ctx.fillStyle = '#ff88cc';
+      ctx.shadowColor = 'rgba(0,0,0,0.9)';
+      ctx.shadowBlur = 5;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(s.emotion, s.x, s.y + bob - 32);
+      ctx.restore();
+    }
+  }
+
+  function aqOpenStatus() {
+    var modal = document.getElementById('aquariumStatusModal');
+    if (!modal) return;
+    var content = document.getElementById('aquariumStatusContent');
+    if (content) {
+      var nextExp = aqGetNextLevelExp(aq.level);
+      var expStr = nextExp != null ? aq.exp + ' / ' + nextExp + ' EXP' : aq.exp + ' EXP (MAX)';
+      var shrimpRows = aq.shrimp.map(function (s) {
+        return '<tr>' +
+          '<td class="aq-modal-td">' + s.name + '</td>' +
+          '<td class="aq-modal-td"><div class="aq-affinity-bar-wrap"><div class="aq-affinity-bar" style="width:' + s.affinity + '%"></div></div></td>' +
+          '<td class="aq-modal-td aq-affinity-val">' + s.affinity + ' / 100</td>' +
+          '</tr>';
+      }).join('');
+      content.innerHTML =
+        '<div class="aq-modal-stat-row"><span class="aq-modal-label">레벨</span><span class="aq-modal-val">Lv. ' + aq.level + '</span></div>' +
+        '<div class="aq-modal-stat-row"><span class="aq-modal-label">경험치</span><span class="aq-modal-val">' + expStr + '</span></div>' +
+        '<div class="aq-modal-section-title">새우 친밀도</div>' +
+        '<table class="aq-modal-table"><tbody>' + shrimpRows + '</tbody></table>';
+    }
+    modal.style.display = 'flex';
+  }
+
+  function aqCloseStatus() {
+    var modal = document.getElementById('aquariumStatusModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  document.addEventListener('click', function (e) {
+    if (!e.target) return;
+    if (e.target.id === 'aquariumDetailBtn') aqOpenStatus();
+    if (e.target.id === 'aquariumModalClose') aqCloseStatus();
+    if (e.target.classList && e.target.classList.contains('aquarium-modal-overlay')) aqCloseStatus();
+  });
+
+  // ==================== END AQUARIUM ====================
+
   render();
+  aqInit();
 })();
