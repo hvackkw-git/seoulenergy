@@ -85,10 +85,7 @@
     4: null,
     5: null,
     6: null,
-    7: null,
-    8: null,
-    9: null,
-    10: null
+    7: null
   };
 
   /** 저장/불러오기 후 전체 갱신 */
@@ -175,7 +172,7 @@
   }
 
   function updateDevSlotButtons() {
-    for (var n = 1; n <= 10; n++) {
+    for (var n = 1; n <= 7; n++) {
       var btn = document.querySelector(".dev-slot-btn[data-dev-slot=\"" + n + "\"]");
       if (!btn) continue;
       if (DEV_SLOTS[n]) btn.classList.add("is-saved"); else btn.classList.remove("is-saved");
@@ -187,7 +184,7 @@
     app.querySelectorAll(".dev-slot-btn").forEach(function (btn) {
       btn.addEventListener("click", function () {
         var n = parseInt(btn.getAttribute("data-dev-slot"), 10);
-        if (!Number.isFinite(n) || n < 1 || n > 10) return;
+        if (!Number.isFinite(n) || n < 1 || n > 7) return;
         var data = DEV_SLOTS[n];
         if (!data || typeof data !== "object") return;
         applyLoadedData(data);
@@ -281,7 +278,7 @@
           </div>
           <div class="save-slot-frame">
             <div class="developer-slot-buttons" aria-label="개발자 프리셋">
-              ${[1,2,3,4,5,6,7,8,9,10].map(function(n) { return "<button type=\"button\" class=\"dev-slot-btn\" data-dev-slot=\"" + n + "\" aria-label=\"개발자 슬롯 " + n + "\">" + n + "</button>"; }).join("")}
+              ${[1,2,3,4,5,6,7].map(function(n) { return "<button type=\"button\" class=\"dev-slot-btn\" data-dev-slot=\"" + n + "\" aria-label=\"개발자 슬롯 " + n + "\">" + n + "</button>"; }).join("")}
             </div>
             <div class="save-slot-second-row">
               <div class="slot-buttons" aria-label="저장 슬롯 불러오기">
